@@ -2,7 +2,7 @@
 -compile(export_all).
 -export([init/0]).
 
--define(PUERTO, 8000).
+-define(PUERTO, 8002).
 -define(HOST, {127, 0, 0, 1}).
 
 username(Socket)->%%Lee un nombre de usuario
@@ -30,23 +30,22 @@ main(Puerto,Host)->
 	{ok,Socket} = gen_tcp:connect(Host, Puerto, Opciones),
 	io:format("Se conecto al servidor ~w en el puerto ~w~n", [Host, Puerto]),
 	Nombre = username(Socket),
-	Pid=spawn(?MODULE,interfaz,[Socket]),
-	reader(Pid,Nombre).
-	
+	spawn(?MODULE,reader,[self(),Nombre]),
+	interfaz(Socket).
+
 interfaz(Socket)->
 	receive
-		ex ->
-			io:format("Interfaz llego ~p~n",[ex]),
-			gen_tcp:send(Socket,<<"EXIT/">>),
-			gen_tcp:close(Socket);
 		{msm,Mensaje}->
-			io:format("Interfaz llego ~p a ~p ~n",[{msm,Mensaje},Socket]),
 			gen_tcp:send(Socket,"MSM/"++Mensaje),
 			interfaz(Socket);
 		{tcp,Socket,<<"MSM/",Texto/binary>>}->
-			io:format("Interfaz llego ~p~n",[{tcp,Texto}]),
-			io:format("~p~n",[binary:bin_to_list(Texto)]),
+			io:format("~s~n",[binary:bin_to_list(Texto)]),
 			interfaz(Socket);
+		ex ->
+			io:format("Cerrando Sesion~n"),
+			gen_tcp:send(Socket,<<"EXIT/">>),
+			gen_tcp:close(Socket);
 		Error->
-			io:format("Error: ~p~n",Error)
+			io:format("Error: ~p~n",Error),
+			interfaz(Socket)
 	end.
