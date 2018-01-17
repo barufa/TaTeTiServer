@@ -53,9 +53,10 @@ main(Puerto,Server)->%%Crea un socket y va a esperar conexiones
 	
 listen(Socket,Server)->%%Espera nuevas conexiones
 	{ok,Newsocket} = gen_tcp:accept(Socket),
-	spawn(fun() -> listen(Socket,Server) end),
+	Pid=spawn(?MODULE,cliente,[Newsocket,Server]),
+	gen_tcp:controlling_process(Newsocket,Pid),
 	io:format("Se ha establecido una nueva conexio ~p~n",[Newsocket]),
-	cliente(Newsocket,Server).
+	listen(Socket,Server).
 
 cliente(Socket,Server)->%%Interface entre el cliente y el server(Simplifica tcp)
 	receive
@@ -76,9 +77,8 @@ cliente(Socket,Server)->%%Interface entre el cliente y el server(Simplifica tcp)
 		{tcp,Socket,<<"MSM/",Texto/binary>>}  ->
 			Server!{msm,self(),binary:bin_to_list(Texto)},
 			cliente(Socket,Server);
-		{tcp,Socket,<<"EXIT/">>}                  ->
-			Server!{ex,self()},
-			gen_tcp:close(Socket);
+		{tcp,Socket,<<"EXIT/">>}               ->
+			Server!{ex,self()};
 		{tcp_closed, Socket}                  ->
 			io:format("Se cerro la conexion~n");
 	%%Errores
