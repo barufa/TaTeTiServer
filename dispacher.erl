@@ -11,7 +11,7 @@ init(Puerto)->
 	register(directory,Pid),
 	listen(Socket).
 
-directory(List)->%%Puede estar aca o en server y despues la incluimos.
+directory(List)->%%Deberia estar en server, por el momento la implemento aca
 	receive 
 		{add,_Pid,Nombre}    ->
 			L=ordset:add_element(Nombre,List);
@@ -26,7 +26,7 @@ directory(List)->%%Puede estar aca o en server y despues la incluimos.
 
 listen(ListenSocket)->
 	{ok, Socket} = gen_tcp:accept(ListenSocket),
-    spawn(?MODULE,interfaz,[Socket]),
+    	spawn(?MODULE,interfaz,[Socket]),
 	listen(ListenSocket).
 	
 interfaz(Socket)->
