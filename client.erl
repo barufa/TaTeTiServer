@@ -1,51 +1,52 @@
 -module(client).
 -compile(export_all).
--export([init/0]).
 
 -define(PUERTO, 8002).
 -define(HOST, {127, 0, 0, 1}).
+-define(OPCIONES,[{active,false},{mode, binary}]).
 
-username(Socket)->%%Lee un nombre de usuario
-	Nombre = string:strip(io:get_line("Ingrese un nombre de usuario: "), right, $\n),
-	gen_tcp:send(Socket,"NEW/"++Nombre),
-	receive
-		{tcp,Socket,<<"USED/">>}   ->
-			io:format("El usuario ~p ya esta en uso~n",[Nombre]),
+init()-> main(?HOST,?PUERTO).	
+
+main(Host,Puerto)->
+	{ok,Socket} = gen_tcp:connect(Host, Puerto, ?OPCIONES),
+	username(Socket),
+	spawn(?MODULE,writer,[Socket]),
+	reader(Socket).
+
+username(Socket)->
+	Nombre = string:strip(io:get_line("Ingrese un nombre de usuario: "),right,$\n),%Salto de linea o espacio
+	gen_tcp:send(Socket,"CON "++Nombre),
+	case gen_tcp:recv(Socket,0) of
+		{ok,<<"OK ",_/binary>>}  ->
+			io:format("Bienvenido ~w",[Nombre]),
+			Nombre;
+		{ok,<<"ERROR ",_/binary>>}   -> 
+			io:format("El nombre de usuario no esta disponible~n"),
 			username(Socket);
-		{tcp,Socket,<<"OKNAME/">>} ->
-			io:format("Bienvenido ~p~n",[Nombre]),
-			Nombre
-	end.
-	
-reader(Server,Nombre)->
-	case string:strip(io:get_line(Nombre++": "), right, $\n) of
-		"Chat:Salir" -> Server!ex;
-		Mensaje      -> Server!{msm,Mensaje},reader(Server,Nombre)
+		{error,closed}              ->
+			io:format("Se ha cerrado la conexion~n"),
+			exit(closed);
+		{error,Reason}              ->
+			io:format("Se ha producido un error en la conexion~n"),
+			exit(Reason)
 	end.
 
-init()-> main(?PUERTO,?HOST).
+writer(Server)->
+	Comando = string:strip(io:get_line("-> "), right, $\n),
+	spawn(gen_tcp,send,[Server,Comando]),
+	writer(Server).
 
-main(Puerto,Host)->
-	Opciones = [{active, true}, {mode, binary}],
-	{ok,Socket} = gen_tcp:connect(Host, Puerto, Opciones),
-	io:format("Se conecto al servidor ~w en el puerto ~w~n", [Host, Puerto]),
-	Nombre = username(Socket),
-	spawn(?MODULE,reader,[self(),Nombre]),
-	interfaz(Socket).
-
-interfaz(Socket)->
-	receive
-		{msm,Mensaje}->
-			gen_tcp:send(Socket,"MSM/"++Mensaje),
-			interfaz(Socket);
-		{tcp,Socket,<<"MSM/",Texto/binary>>}->
-			io:format("~s~n",[binary:bin_to_list(Texto)]),
-			interfaz(Socket);
-		ex ->
-			io:format("Cerrando Sesion~n"),
-			gen_tcp:send(Socket,<<"EXIT/">>),
-			gen_tcp:close(Socket);
-		Error->
-			io:format("Error: ~p~n",Error),
-			interfaz(Socket)
+reader(Server)-> 
+	case gen_tcp:recv(Server,0) of
+		{ok,<<"END">>}        ->
+			gen_tcp:close(Server);
+		{ok,<<"UPD",Cambio>>} ->
+			io:format("~s~n",Cambio),%%Mejorar Vista
+			reader(Server);
+		{ok,Otherwise}        ->
+			io:format("Mensaje: ~p~n",[Otherwise]),%%Necesario??
+			reader(Server);
+		{error,Reason}        ->
+			io:format("Error: ~p~n",[Reason]),
+			exit(Reason)
 	end.
