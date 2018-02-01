@@ -1,6 +1,6 @@
 -module(pstat).
 -compile(export_all).
--define(INTERVAL,1000).
+-define(INTERVAL,5000).
 
 %%Envia la carga del nodo a todos los demas a intervalos regulares
 

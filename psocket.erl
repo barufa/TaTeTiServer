@@ -18,7 +18,7 @@ getName(Socket)->
 					register(AtomSv,self()),
 					Pid=spawn(Node,pcomando,init,[{AtomSv,node()}]),
 					register(AtomCl,Pid),
-					interfaz(Socket,{AtomCl,node()});
+					interfaz(Socket,{AtomCl,Node});
 			   _Error  ->
 					gen_tcp:send(Socket, "ERROR CON Used"),
 					getName(Socket)

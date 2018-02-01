@@ -1,7 +1,7 @@
 -module(client).
 -compile(export_all).
 
--define(PUERTO, 8000).
+-define(PUERTO, 8002).
 -define(HOST, {127, 0, 0, 1}).
 -define(OPCIONES,[{active,false},{mode, binary}]).
 
