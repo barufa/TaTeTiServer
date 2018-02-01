@@ -15,7 +15,7 @@ main(Host,Puerto)->
 
 username(Socket)->
 	Nombre = string:strip(io:get_line("Ingrese un nombre de usuario: "),right,$\n),%Salto de linea o espacio
-	gen_tcp:send(Socket,"CON "++Nombre),
+	gen_tcp:send(Socket,"CON"++Nombre),
 	case gen_tcp:recv(Socket,0) of
 		{ok,<<"OK ",_/binary>>}  ->
 			io:format("Bienvenido ~w",[binary:bin_to_list(Nombre)]),

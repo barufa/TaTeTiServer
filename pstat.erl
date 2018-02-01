@@ -9,7 +9,7 @@ sleep(N) -> receive after N -> ok end.
 monitor()->
 	sleep(?INTERVAL),
 	{_,N} = statistics(reductions),
+	io:format("Peso: ~p~n",[N]),
 	L = [node()|nodes()],
 	lists:foreach(fun(V)-> {balance,V}!{load,node(),N} end,L),
 	monitor().
-

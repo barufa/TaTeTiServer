@@ -39,8 +39,9 @@ client2server(Client,Server)->
 		{ok,<<Msg/binary>>} ->
 			io:format("Enviado a server~n"),
 			Server!binary:bin_to_list(Msg);
-		_X ->
-			io:format("Rompe todo~n")
+		X ->
+			io:format("Rompe todo: ~p~n",[X]),
+			exit(rompe)
 	end,
 	client2server(Client,Server).
 
