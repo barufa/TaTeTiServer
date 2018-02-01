@@ -5,7 +5,7 @@
 -define(HOST, {127, 0, 0, 1}).
 -define(OPCIONES,[{active,false},{mode, binary}]).
 
-init()-> main(?HOST,?PUERTO).	
+init()-> main(?HOST,?PUERTO).
 
 main(Host,Puerto)->
 	{ok,Socket} = gen_tcp:connect(Host, Puerto, ?OPCIONES),
@@ -18,9 +18,9 @@ username(Socket)->
 	gen_tcp:send(Socket,"CON "++Nombre),
 	case gen_tcp:recv(Socket,0) of
 		{ok,<<"OK ",_/binary>>}  ->
-			io:format("Bienvenido ~w",[Nombre]),
-			Nombre;
-		{ok,<<"ERROR ",_/binary>>}   -> 
+			io:format("Bienvenido ~w",[binary:bin_to_list(Nombre)]),
+			binary:bin_to_list(Nombre);
+		{ok,<<"ERROR ",_/binary>>}   ->
 			io:format("El nombre de usuario no esta disponible~n"),
 			username(Socket);
 		{error,closed}              ->

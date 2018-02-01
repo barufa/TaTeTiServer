@@ -7,30 +7,40 @@
 
 getName(Socket)->
 	case gen_tcp:recv(Socket,0) of
-		{ok,<<"CON",Nombre>>}->
+		{ok,<<"CON",Name/binary>>}->
+			Nombre=binary:bin_to_list(Name),
 			case newName(Nombre) of
-			   ok      -> 
+			   ok      ->
 					gen_tcp:send(Socket,"OK CON"),
 					Node=getNode(),
-					Pid=spawn(Node,pcomando,init,[{self(),node()}]),
-					interfaz(Socket,{Node,Pid});
-			   _Error  -> 
+					AtomSv=list_to_atom(Nombre++"server"),
+					AtomCl=list_to_atom(Nombre++"client"),
+					register(AtomSv,self()),
+					Pid=spawn(Node,pcomando,init,[{AtomSv,node()}]),
+					register(AtomCl,Pid),
+					interfaz(Socket,{AtomCl,node()});
+			   _Error  ->
 					gen_tcp:send(Socket, "ERROR CON Used"),
 					getName(Socket)
 			end;
-		{ok,_Msg}              ->
-			gen_tcp:send(Socket,"Error: Parser");
+		{ok,Msg}              ->
+			io:format("Error: ~p~n",[Msg]),
+			gen_tcp:send(Socket,"Error");
 		{error,_Reason}       ->
-			gen_tcp:send(Socket,"Error: recv")
+			gen_tcp:send(Socket,"Error")
 	end.
 
 interfaz(Client,Server)->
 	spawn(?MODULE,client2server,[Client,Server]),
-	spawn(?MODULE,server2client,[Client,Server]).
+	server2client(Client,Server).
 
 client2server(Client,Server)->
 	case gen_tcp:recv(Client,0) of
-		{ok,Msg} -> Server!Msg
+		{ok,<<Msg/binary>>} ->
+			io:format("Enviado a server~n"),
+			Server!binary:bin_to_list(Msg);
+		_X ->
+			io:format("Rompe todo~n")
 	end,
 	client2server(Client,Server).
 
@@ -40,12 +50,12 @@ server2client(Client,_Server)->
 	end,
 	server2client(Client,_Server).
 
-newName(Nombre)->
-	dir!{is,self(),Nombre},
-	receive
-		true   -> 
-			error;
-		_False ->
-			directory!{add,self(),Nombre},
-			ok
-	end.
+newName(_Nombre)->ok.
+	% dir!{is,self(),Nombre},
+	% receive
+	% 	true   ->
+	% 		error;
+	% 	_False ->
+	% 		directory!{add,self(),Nombre},
+	% 		ok
+	% end.
