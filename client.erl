@@ -36,7 +36,7 @@ writer(Server)->
 	spawn(gen_tcp,send,[Server,Comando]),
 	writer(Server).
 
-reader(Server)-> 
+reader(Server)-> %%Falta agregar muchas cosas
 	case gen_tcp:recv(Server,0) of
 		{ok,<<"END">>}        ->
 			gen_tcp:close(Server);
