@@ -6,6 +6,7 @@
 -define(OPCIONES,[{active,false},{mode, binary}]).
 
 init()-> main(?HOST,?PUERTO).
+init(Puerto)-> main(?HOST,Puerto).
 
 main(Host,Puerto)->
 	{ok,Socket} = gen_tcp:connect(Host, Puerto, ?OPCIONES),
@@ -14,8 +15,8 @@ main(Host,Puerto)->
 	reader(Socket).
 
 username(Socket)->
-	Nombre = string:strip(io:get_line("Ingrese un nombre de usuario: "),right,$\n),%Salto de linea o espacio
-	gen_tcp:send(Socket,"CON"++Nombre),
+	Nombre = string:strip(io:get_line("Ingrese un nombre de usuario: "),right,$\n),%Salto de linea o espacio?
+	gen_tcp:send(Socket,"CON "++Nombre),
 	case gen_tcp:recv(Socket,0) of
 		{ok,<<"OK ",_/binary>>}  ->
 			io:format("Bienvenido ~w",[Nombre]),
@@ -40,7 +41,7 @@ reader(Server)-> %%Falta agregar muchas cosas
 	case gen_tcp:recv(Server,0) of
 		{ok,<<"END">>}        ->
 			gen_tcp:close(Server);
-		{ok,<<"UPD",Cambio>>} ->
+		{ok,<<"UPD ",Cambio>>} ->
 			io:format("~s~n",Cambio),%%Mejorar Vista
 			reader(Server);
 		{ok,Otherwise}        ->

@@ -1,12 +1,16 @@
 -module(pcomando).
 -compile(export_all).
 
-init(Psocket)->
-  io:format("En pcomando~n"),
+reverser(S)->reverser(S,[]).
+reverser([H|T],L)->reverser(T,[H|L]);
+reverser([],SS)->SS.
+
+reverse(Psocket)->
+  io:format("En pcomando en ~p~n",[node()]),
   receive
     Msg ->
       io:format("Llego ~p~n",[Msg]),
-      Nmsg=string:reverse(Msg),
+      Nmsg=reverser(Msg),
       Psocket!Nmsg
   end,
-  init(Psocket).
+  reverse(Psocket).

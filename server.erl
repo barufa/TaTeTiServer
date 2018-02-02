@@ -4,15 +4,6 @@
 -define(OPCIONES,[{active,false},{mode, binary}]).
 %%Inicializa todo
 
-f()->
-	receive
-		X -> io:format("F: ~p~n",[X])
-	end,
-	f().
-
-next()->ok.%%Nombre del siguiente nodo.
-back()->ok.%%Nombre del nodo anterior.
-
 init(Puerto)->
 	io:format("Iniciando nodo ~p~n",[node()]),
 	Pdir=spawn(?MODULE,directory,[ordsets:new()]),
