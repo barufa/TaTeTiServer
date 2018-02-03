@@ -19,7 +19,7 @@ username(Socket)->
 	gen_tcp:send(Socket,"CON "++Nombre),
 	case gen_tcp:recv(Socket,0) of
 		{ok,<<"OK ",_/binary>>}  ->
-			io:format("Bienvenido ~w",[Nombre]),
+			io:format("Bienvenido ~p~n",[Nombre]),
 			Nombre;
 		{ok,<<"ERROR ",_/binary>>}   ->
 			io:format("El nombre de usuario no esta disponible~n"),

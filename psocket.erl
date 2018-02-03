@@ -8,15 +8,14 @@
 getName(Socket)->
 	case gen_tcp:recv(Socket,0) of
 		{ok,<<"CON ",Name/binary>>}->
-			Nombre=binary:bin_to_list(Name),
+			Nombre=binary2name(Name),
 			case newName(Nombre) of
 			   ok      ->
-					gen_tcp:send(Socket,"OK CON"),
 					Node=getNode(),
-					io:format("Creando Pcomando en ~p~n",[Node]),
-					Atom=list_to_atom(Nombre++"server"),
+					Atom=list_to_atom(Nombre),
 					register(Atom,self()),
 					Pid=spawn(Node,pcomando,reverse,[{Atom,node()}]),
+					gen_tcp:send(Socket,"OK CON"),
 					interfaz(Socket,Pid);
 			   _Error  ->
 					gen_tcp:send(Socket, "ERROR CON Used"),
@@ -29,6 +28,11 @@ getName(Socket)->
 			gen_tcp:send(Socket,"Error")
 	end.
 
+binary2name(Bs)->
+	S=binary:bin_to_list(Bs),
+	Nd=atom_to_list(node()),
+	(S++"_"++Nd).
+
 interfaz(Client,Server)->
 	spawn(?MODULE,client2server,[Client,Server]),
 	server2client(Client,Server).
@@ -36,13 +40,11 @@ interfaz(Client,Server)->
 client2server(Client,Server)->
 	case gen_tcp:recv(Client,0) of
 		{ok,<<Msg/binary>>} ->
-			io:format("Enviado a server~n"),
 			Msm=binary:bin_to_list(Msg),
 			Server!Msm;
 		X ->
 			io:format("Error en client2server: ~p~n",[X]),
-			receive after 5000 -> ok end,
-			exit(rompe)
+			exit(ok)
 	end,
 	client2server(Client,Server).
 
@@ -52,12 +54,12 @@ server2client(Client,_Server)->
 	end,
 	server2client(Client,_Server).
 
-newName(_Nombre)->ok.%%Verifica si un nombre esta disponible y lo agrega
-	% dir!{is,self(),Nombre},
-	% receive
-	% 	true   ->
-	% 		error;
-	% 	_False ->
-	% 		directory!{add,self(),Nombre},
-	% 		ok
-	% end.
+newName(Nombre)->%%Verifica si un nombre esta disponible y lo agrega
+	 dir!{is,self(),Nombre},
+	 receive
+	 	true   ->
+	 		error;
+	 	_False ->
+			dir!{add,self(),Nombre},
+	 		ok
+	 end.
