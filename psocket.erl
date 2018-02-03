@@ -11,10 +11,7 @@ getName(Socket)->
 			Nombre=binary2name(Name),
 			case newName(Nombre) of
 			   ok      ->
-					Node=getNode(),
-					Atom=list_to_atom(Nombre),
-					register(Atom,self()),
-					Pid=spawn(Node,pcomando,reverse,[{Atom,node()}]),
+					Pid=spawn(getNode(),pcomando,reverse,[self()]),
 					gen_tcp:send(Socket,"OK CON"),
 					interfaz(Socket,Pid);
 			   _Error  ->
