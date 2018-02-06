@@ -1,7 +1,7 @@
 %%Un cliente va a tener vario hilos asociados a el(psocket,pcomando):
-%%En caso de que un hilo se caiga cerrar todos y volver a mandar al dispacher
+%%En caso de que un hilo se caiga cerrar todos y volver a mandar al dispacher?
 %%En caso de que el socket se cierra matar los procesos y borrar al cliente de los registros
-%%Resolver problema ''
+
 -module(server).
 -compile(export_all).
 -define(PUERTO,8000).

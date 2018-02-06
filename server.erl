@@ -8,7 +8,7 @@ tostring(S)->tostring(S,[]).
 tostring(S,L)-> lists:flatten(io_lib:format(S,L)).
 
 getit(String,N)->
-	L=string:tokens(String,"_"),
+	L=string:tokens(String,"{_}"),
 	case length(L) of
 		2 ->
 			lists:nth(N,L);
@@ -45,6 +45,14 @@ directory(List)->
 		{show,Pid}           ->
 			L=List,
 			R=ordsets:to_list(L),
-			Pid!R
+			Pid!R;
+		{all,Pid}            ->
+			L=List,
+			Lw = lists:map(fun(Node)-> spawn(Node,server,getuserlist,[self()]),receive X -> X end end,nodes()),
+			Pid!(lists:append(Lw)++L)
 	end,
 	directory(L).
+
+getuserlist(Pid)->
+	dir!{show,self()},
+	receive X -> Pid!X end.
