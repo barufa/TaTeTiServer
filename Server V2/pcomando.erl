@@ -1,7 +1,5 @@
 -module(pcomando).
 -compile(export_all).
--define(TIMEOUT,10000).
--import(server,[tostring/1,tostring/2,getNode/1,getName/1,getAtom/1]).
 
 reverser(S)->reverser(S,[]).
 reverser([H|T],L)->reverser(T,[H|L]);
@@ -14,44 +12,25 @@ reverse(Psocket)->
       io:format("Llego ~p~n",[Msg]),
       Nmsg=reverser(Msg),
       Psocket!Nmsg
-  end,
-  reverse(Psocket).
+  end.
 
-inbox() -> receive X -> X end.
-
-%%Las partidas se llavaran a cabo en un unico pcomando(tener en cuenta que cada cliente tendra su propio pcomando y sera necesario cerrar uno).
-comand(User)->
-	Atom=getAtom(tostring(User)++"_"++tostring(node())),
-	register(Atom,self()),
-	comand(User,Atom).
-	
-comand(User,Atom)->
-	case string:tokens(inbox()," ") of
-		["LSG"]      ->%%Lista los juegos disponibles
-			At=getAtom(tostring(Atom)++"_"++tostring(self())++"LSG"),
-			Pid=spawn(?MODULE,sendit,[User,At]),
-			register(At,Pid),
-			wait!{all,{At,node()}},
-			comand(User,Atom);
-		["LBS"]      ->%%Observa un juego,cierra el pcomando actual
-			At=getAtom(tostring(Atom)++"_"++tostring(self())++"LBS"),
-			Pid=spawn(?MODULE,sendit,[User,At]),
-			register(At,Pid),
-			game!{all,{At,node()}},
-			comand(User,Atom)
+%~ comand(Psocket)->
+	%~ case string:tokens(inbox(),"\" ") of
+		%~ ["LSG"]      ->%%Lista los juegos disponibles(no iniciados)
+		%~ ["LVG"]      ->%%Lista los juegos que se pueden observar
+		%~ ["LBS"]      ->%%Observa un juego,cierra el pcomando actual
 		%~ ["NEW"]      ->%%Crea un nuevo juego y espera
-			%~ wait!{add,tostring(Atom)++"_"++(getName(User)++"_"++getNode(User))};
-			%~ %%Esperar a que alguien se conecte
-		%~ ["OBS"]      ->%%Observa un juego,cierra el pcomando actual
+		%~ ["OBS",GAME] ->%%Observa un juego,cierra el pcomando actual
 		%~ ["BYE"]      ->%%Cierrra la conexion
-		%~ ["ACC"]      ->%%Acepta un juego
-		%~ ["PLA"]      ->%%Realiza una jugada en un juego(En otra funcion) 
-		%~ ["LEA"]      ->%%Abandona una partida que esta obserando(En otra funcion)			
-	end.
+		%~ ["ACC",GAME] ->%%Acepta un juego
+		%~ ["PLA",GAME] ->%%Realiza una jugada en un juego
+		%~ ["LEA"]      ->%%Abandona una partida que esta obserando			
+		%~ ["HLP"]      ->%%Muestra un mensaje de ayuda			
+	%~ end.
 
-sendit(User,Atom)->
-	receive
-		X -> User!X
-		after ?TIMEOUT -> ok
-	end,
-	unregister(Atom).
+
+sendit(User)->
+	receive Msm -> User!("UPD "++Msm) end,
+	sendit(User).
+
+inbox() -> receive X -> server:tostring(X) end.

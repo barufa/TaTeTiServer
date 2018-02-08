@@ -2,8 +2,6 @@
 -compile(export_all).
 -define(OPCIONES,[{active,false},{mode, binary}]).
 
-%%Toma la conexion y llama a psocket.
-
 init(Puerto)->
 	{ok,Socket} = gen_tcp:listen(Puerto,?OPCIONES),
 	listen(Socket).
