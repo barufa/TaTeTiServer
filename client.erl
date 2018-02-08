@@ -37,10 +37,8 @@ writer(Server)->
 	spawn(gen_tcp,send,[Server,Comando]),
 	writer(Server).
 
-reader(Server)-> %%Falta agregar muchas cosas
+reader(Server)-> %%Falta modificar
 	case gen_tcp:recv(Server,0) of
-		{ok,<<"END">>}        ->
-			gen_tcp:close(Server);
 		{ok,<<"UPD ",Cambio>>} ->
 			io:format("~s~n",Cambio),%%Mejorar Vista
 			reader(Server);

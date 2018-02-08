@@ -12,8 +12,7 @@ reverse(Psocket)->
       io:format("Llego ~p~n",[Msg]),
       Nmsg=reverser(Msg),
       Psocket!Nmsg
-  end,
-  reverse(Psocket).
+  end.
 
 %~ comand(Psocket)->
 	%~ case string:tokens(inbox(),"\" ") of
@@ -27,8 +26,7 @@ reverse(Psocket)->
 		%~ ["PLA",GAME] ->%%Realiza una jugada en un juego
 		%~ ["LEA"]      ->%%Abandona una partida que esta obserando			
 		%~ ["HLP"]      ->%%Muestra un mensaje de ayuda			
-	%~ end,
-	%~ comand(Psocket).
+	%~ end.
 
 
 sendit(User)->

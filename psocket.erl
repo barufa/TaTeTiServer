@@ -6,50 +6,47 @@
 %%Se encarga a obtener un nombre de usuario y redireccionar los mensajes al pcomando correspondiente
 
 getName(Socket)->
-	case gen_tcp:recv(Socket,0) of
-		{ok,<<"CON ",Name/binary>>}->
-			Nombre=binary2name(Name),
+	case string:tokens(inbox(Socket)," ") of
+		["CON",Cid,Nombre] ->
 			case newName(Nombre) of
 			   ok      ->
-					Pid=spawn(getNode(),pcomando,reverse,[self()]),
-					gen_tcp:send(Socket,"OK CON"),
-					interfaz(Socket,Pid);
+					%~ Pid=spawn(getNode(),pcomando,reverse,[self()]),
+					gen_tcp:send(Socket,"OK "++Cid),
+					interfaz(Socket,Nombre);
 			   _Error  ->
-					gen_tcp:send(Socket, "ERROR CON Used"),
+					gen_tcp:send(Socket, "ERROR "++Cid++" Used"),
 					getName(Socket)
 			end;
-		{ok,Msg}              ->
-			io:format("Error: ~p~n",[Msg]),
-			gen_tcp:send(Socket,"Error");
-		{error,_Reason}       ->
-			gen_tcp:send(Socket,"Error")
+		[_Com|[Id|_L]]     ->
+			gen_tcp:send(Socket,"ERROR "++Id++"comanderror");
+		_X                  ->
+			clean(Socket)
 	end.
 
-binary2name(Bs)->
-	S=binary:bin_to_list(Bs),
-	Nd=atom_to_list(node()),
-	(S++"_"++Nd).
-
-interfaz(Client,Server)->
-	spawn(?MODULE,client2server,[Client,Server]),
-	server2client(Client,Server).
-
-client2server(Client,Server)->
-	case gen_tcp:recv(Client,0) of
-		{ok,<<Msg/binary>>} ->
-			Msm=binary:bin_to_list(Msg),
-			Server!Msm;
-		X ->
-			io:format("Error en client2server: ~p~n",[X]),
-			exit(ok)
+interfaz(Client,Nombre)->
+	case string:tokens(inbox(Client)," ") of
+		[Comand|[Id|Op]] ->
+			spawn(getNode(),pcomando,comando,[[Comand|Op],self()]),
+			receive 
+				{ok,X}    ->
+					gen_tcp:send(Client,"OK "++Id++" "++X);
+				{error,Y} ->
+					gen_tcp:send(Client,"ERROR "++Id++" "++Y);
+				{close}   ->
+					gen_tcp:send(Client,"OK "++Id),
+					clean(Client,Nombre)
+			end
 	end,
-	client2server(Client,Server).
+	interfaz(Client,Nombre).
 
-server2client(Client,_Server)->
-	receive
-		Msg -> gen_tcp:send(Client,Msg)
-	end,
-	server2client(Client,_Server).
+clean(Sk) ->
+	receive after 500 -> ok end,
+	gen_tcp:close(Sk),
+	exit(ok).
+	
+clean(Sk,Nombre)->
+	dir!{remove,self(),Nombre},
+	clean(Sk).
 
 newName(Nombre)->%%Verifica si un nombre esta disponible y lo agrega
 	 dir!{is,self(),Nombre},
@@ -60,3 +57,10 @@ newName(Nombre)->%%Verifica si un nombre esta disponible y lo agrega
 			dir!{add,self(),Nombre},
 	 		ok
 	 end.
+
+inbox()-> receive X -> X end.
+inbox(Socket)->
+	case gen_tcp:recv(Socket,0) of
+		{ok,<<S/binary>>} -> binary:bin_to_list(S);
+		{error,_Reason}   -> gen_tcp:send(Socket,"Error conexionerror"),error
+	end.
