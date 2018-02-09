@@ -5,14 +5,9 @@ reverser(S)->reverser(S,[]).
 reverser([H|T],L)->reverser(T,[H|L]);
 reverser([],SS)->SS.
 
-reverse(Psocket)->
-  io:format("En pcomando en ~p~n",[node()]),
-  receive
-    Msg ->
-      io:format("Llego ~p~n",[Msg]),
-      Nmsg=reverser(Msg),
-      Psocket!Nmsg
-  end.
+reverse(Comando,Psocket)->
+  C = lists:nth(1,Comando),
+  Psocket!{ok,reverser(C)}.
 
 %~ comand(Psocket)->
 	%~ case string:tokens(inbox(),"\" ") of

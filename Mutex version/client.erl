@@ -16,7 +16,7 @@ main(Host,Puerto)->
 
 username(Socket)->
 	Nombre = string:strip(io:get_line("Ingrese un nombre de usuario: "),right,$\n),%Salto de linea o espacio?
-	gen_tcp:send(Socket,"CON "++Nombre),
+	gen_tcp:send(Socket,"CON 1 "++Nombre),
 	case gen_tcp:recv(Socket,0) of
 		{ok,<<"OK ",_/binary>>}  ->
 			io:format("Bienvenido ~p~n",[Nombre]),
@@ -33,7 +33,7 @@ username(Socket)->
 	end.
 
 writer(Server)->
-	Comando = string:strip(io:get_line("-> "), right, $\n),
+	Comando = string:strip(io:get_line("(Con comandid)-> "), right, $\n),
 	spawn(gen_tcp,send,[Server,Comando]),
 	writer(Server).
 

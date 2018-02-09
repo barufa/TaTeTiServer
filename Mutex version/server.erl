@@ -11,7 +11,7 @@ tostring(S,L)-> lists:flatten(io_lib:format(S,L)).
 init(Puerto)->
 	io:format("Iniciando nodo ~p~n",[node()]),
 	spawn(pstat,monitor,[]),
-	Pdir=spawn(?MODULE,directory,[ordsets:new()]),
+	Pdir=spawn(?MODULE,directory,[ordsets:new(),unlock]),
 	Pbal=spawn(pbalance,nodeList,[[]]),
 	register(dir,Pdir),
 	register(balance,Pbal),
@@ -23,7 +23,7 @@ init(Puerto)->
 
 dirlock() -> dirlock(random:uniform(?P)).
 
-dirunlock()->lists:foreach(fun(X)-> {dir,X}!unlock end,nodes()).
+dirunlock()->lists:foreach(fun(X)-> {dir,X}!{unlock} end,nodes()).
 
 dirlock(N)->
 	Pid=spawn(?MODULE,dirlock,[N,self()]),
@@ -36,7 +36,7 @@ dirlock(N)->
 waitunlock()->
 	receive 
 		unlock     -> ok;
-		{lock,P,T} -> P!locked,waitunlock()
+		{lock,P,_T} -> P!locked,waitunlock()
 	end.
 
 dirlock(N,Pid)->
@@ -72,53 +72,74 @@ cath(M,N)->
 %~ {show,self(),Nombre}   -> Muestra todos los nombres del servidor(responde con una lista de nombres).
 %~ {is,Pid,Nombre}        -> Verifica si el nombre ya esta en uso(responde con true o false).
 
-directory(List)->%%Problema concurrencia(Si dos nodos agregan el mismo nombre al mismo tiempo(Ver ejercicio 6 de la practica de erlang, tiene locks)).
+directory(List,State)->
 	receive
 		{lock,Pid,_N} ->
-			L=List,
+			io:format("Llego lock de ~p~n",[Pid]),
 			Pid!locked,
-			waitunlock(),
+			directory(List,lock);
+		{unlock}->
+			io:format("Llego unlcok~n"),
+			directory(List,unlock);
 		{remove,_Pid,Nombre}  ->
-			L=ordsets:del_element(Nombre,List),
-			spawn(lists,foreach,[fun(V)-> {dir,V}!{removehere,self(),Nombre} end,nodes()]);
+			spawn(lists,foreach,[fun(V)-> {dir,V}!{removehere,self(),Nombre} end,nodes()]),
+			directory(ordsets:del_element(Nombre,List),State);
 		{show,Pid}            ->
-			L=List,
-			spawn(?MODULE,getuserlist,[Pid]);
+			spawn(?MODULE,getuserlist,[Pid]),
+			directory(List,State);
 		{is,Pid,Nombre}       ->
-			L=List,
+			io:format("Recibi un is~n"),
 			case ordsets:is_element(Nombre,List) of
 				true   -> Pid!true;
 				_False -> spawn(?MODULE,isavailiable,[Pid,Nombre])
-			end;
+			end,
+			directory(List,State);
 		{ishere,Pid,Nombre}   ->
-			L=List,
 			R=ordsets:is_element(Nombre,List),
-			Pid!R;
+			Pid!R,
+			directory(List,State);
 		{showhere,Pid}        ->
-			L=List,
-			Pid!L;
+			Pid!List,
+			directory(List,State);
 		{removehere,_Pid,Nombre} ->
-			L=ordsets:del_element(Nombre,List);
+			directory(ordsets:del_element(Nombre,List),State);
 		{add,Pid,Nombre}     ->
-			case ordsets:is_element(Nombre,List) of
+			directory(addelement({Pid,Nombre},List,State),unlock)
+	end.
+
+addelement({Pid,Nombre},List,State)->
+	io:format("En add ~p a ~p ~n",[Nombre,ordsets:to_list(List)]),
+	case ordsets:is_element(Nombre,List) of
 				true   -> 
-					L=List,Pid!error;
+					io:format("Descartando elemento~n"),Pid!error,L=List;
 				_False -> 
-					dirlock(),%%Duerme hasta que pueda escribir
-					case isavailiable(Nombre) of
-					   false -> L=List,Pid!error;
-					   true  -> L=lists:add_element(Nombre,List),Pid!ok					  
+					case State of
+						lock -> waitunlock();
+						unlock -> ok
 					end,
+					io:format("Estoy en unlcok~n"),
+					dirlock(),%%Duerme hasta que pueda escribir
+					io:format("Preguntando y escribiendo~n"),
+					case isavailiable(Nombre) of
+					   false -> io:format("No guarde~n"),Pid!error,L=List;
+					   true  -> io:format("Si guarde~n"),Pid!ok,L=ordsets:add_element(Nombre,List)					  
+					end,
+					io:format("Liberando~n"),
 					dirunlock()
-			end
 	end,
-	directory(L).
+	L.
 
 isavailiable(Nombre)->
-	lists:any(fun(Node)->{dir,Node}!{ishere,self(),Nombre},receive true->true;false->false after ?TIMEOUT -> false end end,nodes()).
-
+	case nodes() of
+		[] -> true;                                                        %%Si esta en otro nodo, entonces no esta disponible(true->false)
+		_L -> lists:all(fun(Node)->{dir,Node}!{ishere,self(),Nombre},receive true->false;false->true after ?TIMEOUT -> false end end,nodes())
+	end.
+	
 isavailiable(Pid,Nombre)->
-	R=lists:any(fun(Node)->{dir,Node}!{ishere,self(),Nombre},receive true->true;false->false after ?TIMEOUT -> false end end,nodes()),
+	case nodes() of
+		[] -> R=true;
+		_L -> R=lists:all(fun(Node)->{dir,Node}!{ishere,self(),Nombre},receive true->false;false->true after ?TIMEOUT -> false end end,nodes())
+	end,
 	Pid!R.
 
 reduce(F,Z,X)->

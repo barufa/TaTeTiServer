@@ -15,7 +15,6 @@ nodeList(List)->
 			Ll=lists:filter(fun({X,_})-> X/=S end,List),
 			L=[{S,N}|Ll];
 		{min,P}    ->
-			io:format("Pbalance: ~p~n",[List]),
 			L=List,
 			{A,_B} = minimo(L),
 			P!A
