@@ -28,7 +28,13 @@ dirlock(N)->
 	receive
 		{lock,P,T} -> Pid!{lock,P,T};
 		ok    -> ok;
-		error -> receive unlock -> ok end,dirlock(max(random:uniform(?P),N))
+		error -> waitunlock(),dirlock(max(random:uniform(?P),N))%%con max hay mayor probabilidad mientras mas tiempo pasa
+	end.
+
+waitunlock()->
+	receive 
+		unlock     -> ok;
+		{lock,_,_} -> waitunlock()
 	end.
 
 dirlock(N,Pid)->
