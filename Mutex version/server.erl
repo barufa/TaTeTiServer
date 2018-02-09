@@ -23,6 +23,8 @@ init(Puerto)->
 
 dirlock() -> dirlock(random:uniform(?P)).
 
+dirunlock()->lists:foreach(fun(X)-> {dir,X}!unlock end,nodes()).
+
 dirlock(N)->
 	Pid=spawn(?MODULE,dirlock,[N,self()]),
 	receive
@@ -34,7 +36,7 @@ dirlock(N)->
 waitunlock()->
 	receive 
 		unlock     -> ok;
-		{lock,_,_} -> waitunlock()
+		{lock,P,T} -> P!locked,waitunlock()
 	end.
 
 dirlock(N,Pid)->
@@ -58,8 +60,6 @@ cath(M,N)->
 								end
 			end
 	end.
-
-dirunlock()->lists:foreach(fun(X)-> {dir,X}!unlock end,nodes()).
 	
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%DIRECTORIO DE NOMBRES%%%%%%%%%%
@@ -77,7 +77,7 @@ directory(List)->%%Problema concurrencia(Si dos nodos agregan el mismo nombre al
 		{lock,Pid,_N} ->
 			L=List,
 			Pid!locked,
-			receive unlock -> ok end;
+			waitunlock(),
 		{remove,_Pid,Nombre}  ->
 			L=ordsets:del_element(Nombre,List),
 			spawn(lists,foreach,[fun(V)-> {dir,V}!{removehere,self(),Nombre} end,nodes()]);
