@@ -30,7 +30,7 @@ dirlock(N,L)->
 	receive
 		{lock,P,T} -> Pid!{lock,P,T};
 		ok    -> ok;
-		error -> waitunlock(L),dirlock(max(random:uniform(?P),N),L)%%con max hay mayor probabilidad mientras mas tiempo pasa
+		error -> waitunlock(L),dirlock(random:uniform(?P),L)%%con max hay mayor probabilidad mientras mas tiempo pasa
 	end.
 
 waitunlock(List)->
