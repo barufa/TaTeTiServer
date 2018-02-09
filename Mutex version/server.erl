@@ -122,7 +122,7 @@ addelement({Pid,Nombre},List,State)->
 					end,
 					io:format("Estoy en unlcok~n"),
 					dirlock(List),%%Duerme hasta que pueda escribir
-					receive after 10000-> ok end,
+					%~ receive after 10000-> ok end,
 					io:format("Preguntando y escribiendo~n"),
 					case isavailiable(Nombre) of
 					   false -> io:format("No guarde~n"),Pid!error,L=List;
