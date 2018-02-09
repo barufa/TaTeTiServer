@@ -17,11 +17,16 @@ init(Puerto)->
 	register(balance,Pbal),
 	dispacher:init(Puerto).
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%Mutex%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 dirlock() -> dirlock(random:uniform(?P)).
 
 dirlock(N)->
-	spawn(?MODULE,dirlock,[N,self()]),
+	Pid=spawn(?MODULE,dirlock,[N,self()]),
 	receive
+		{lock,P,T} -> Pid!{lock,P,T};
 		ok    -> ok;
 		error -> receive unlock -> ok end,dirlock(max(random:uniform(?P),N))
 	end.
@@ -39,7 +44,7 @@ cath(M,N)->
 	   true   -> 
 			receive 
 				locked       -> cath(M+1,N);
-				{lock,Pid,T} ->	if T<N  ->%%No lo recibe pues es otro hilo 
+				{lock,Pid,T} ->	if T<N  -> 
 										cath(M+1,N);
 								   true ->
 										Pid!locked,
@@ -53,14 +58,6 @@ dirunlock()->lists:foreach(fun(X)-> {dir,X}!unlock end,nodes()).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%DIRECTORIO DE NOMBRES%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%%%%Formato de comunicacion%%%%
-
-%~ {add,self(),Nombre}    -> Agrega el nombre(no responde).
-%~ {remove,self(),Nombre} -> Borra el nombre del servidor(no responde).
-%~ {show,self(),Nombre}   -> Muestra todos los nombres del servidor(responde con una lista de nombres).
-%~ {is,Pid,Nombre}        -> Verifica si el nombre ya esta en uso(responde con true o false).
-
 
 %%%%Formato de comunicacion%%%%
 
@@ -83,7 +80,7 @@ directory(List)->%%Problema concurrencia(Si dos nodos agregan el mismo nombre al
 			spawn(?MODULE,getuserlist,[Pid]);
 		{is,Pid,Nombre}       ->
 			L=List,
-			case ordsets:is_element(Nombre,List) of%%Si ya es un elemento respondo true
+			case ordsets:is_element(Nombre,List) of
 				true   -> Pid!true;
 				_False -> spawn(?MODULE,isavailiable,[Pid,Nombre])
 			end;
