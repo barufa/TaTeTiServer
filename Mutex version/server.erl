@@ -21,25 +21,26 @@ init(Puerto)->
 %%%%%%%%%%%%%%%%%%Mutex%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-dirlock() -> dirlock(random:uniform(?P)).
+dirlock(L) -> dirlock(random:uniform(?P),L).
 
 dirunlock()->lists:foreach(fun(X)-> {dir,X}!{unlock} end,nodes()).
 
-dirlock(N)->
-	Pid=spawn(?MODULE,dirlock,[N,self()]),
+dirlock(N,L)->
+	Pid=spawn(?MODULE,dirlock,[N,L,self()]),
 	receive
 		{lock,P,T} -> Pid!{lock,P,T};
 		ok    -> ok;
-		error -> waitunlock(),dirlock(max(random:uniform(?P),N))%%con max hay mayor probabilidad mientras mas tiempo pasa
+		error -> waitunlock(L),dirlock(max(random:uniform(?P),N),L)%%con max hay mayor probabilidad mientras mas tiempo pasa
 	end.
 
-waitunlock()->
+waitunlock(List)->
 	receive 
-		unlock     -> ok;
-		{lock,P,_T} -> P!locked,waitunlock()
+		unlock            -> ok;
+		{lock,P,_T}       -> P!locked,waitunlock(List);
+		{ishere,P,Nombre} -> P!ordsets:is_element(Nombre,List)
 	end.
 
-dirlock(N,Pid)->
+dirlock(N,_L,Pid)->
 	lists:foreach(fun(X)-> {dir,X}!{lock,self(),N} end,nodes()),
 	case cath(0,N) of
 		ok    -> Pid!ok;
@@ -53,8 +54,10 @@ cath(M,N)->
 			receive 
 				locked       -> cath(M+1,N);
 				{lock,Pid,T} ->	if T<N  -> 
+										io:format("Gane lock!~n"),
 										cath(M+1,N);
 								   true ->
+										io:format("Perdi lock!~n"),
 										Pid!locked,
 										error
 								end
@@ -114,11 +117,12 @@ addelement({Pid,Nombre},List,State)->
 					io:format("Descartando elemento~n"),Pid!error,L=List;
 				_False -> 
 					case State of
-						lock -> waitunlock();
+						lock -> io:format("Esperando~n"),waitunlock(List);
 						unlock -> ok
 					end,
 					io:format("Estoy en unlcok~n"),
-					dirlock(),%%Duerme hasta que pueda escribir
+					dirlock(List),%%Duerme hasta que pueda escribir
+					receive after 10000-> ok end,
 					io:format("Preguntando y escribiendo~n"),
 					case isavailiable(Nombre) of
 					   false -> io:format("No guarde~n"),Pid!error,L=List;

@@ -1,7 +1,7 @@
 -module(make).
 -compile(export_all).
 
-first(Puerto)->
+fst(Puerto)->
 	net_kernel:start([fst, shortnames]),
 	spawn(server,init,[Puerto]).
 	
@@ -19,3 +19,6 @@ bad(Puerto)->
 	net_kernel:start([bad, shortnames]),
 	net_adm:ping('fst@R480'),
 	spawn(server,init,[Puerto]).
+
+clt(Puerto)->
+	spawn(client,init,[Puerto]).
