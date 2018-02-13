@@ -40,10 +40,10 @@ writer(Server)->
 reader(Server)-> %%Falta modificar
 	case gen_tcp:recv(Server,0) of
 		{ok,<<"UPD ",Cambio>>} ->
-			io:format("~s~n",Cambio),%%Mejorar Vista
+			io:format("~s~n",Cambio),
 			reader(Server);
 		{ok,Otherwise}        ->
-			io:format("Mensaje: ~p~n",[Otherwise]),%%Necesario??
+			io:format("Mensaje: ~p~n",[Otherwise]),
 			reader(Server);
 		{error,Reason}        ->
 			io:format("Error: ~p~n",[Reason]),

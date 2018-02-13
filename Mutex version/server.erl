@@ -5,14 +5,16 @@
 -define(TIMEOUT,1000).
 -define(P,1000000).
 
-tostring(S)->tostring(S,[]).
+tostring(S)->tostring("~p",[S]).
 tostring(S,L)-> lists:flatten(io_lib:format(S,L)).
 
 init(Puerto)->
 	io:format("Iniciando nodo ~p~n",[node()]),
 	spawn(pstat,monitor,[]),
 	Pdir=spawn(?MODULE,directory,[ordsets:new(),unlock]),
+	Pgam=spawn(?MODULE,games,[maps:new()]),
 	Pbal=spawn(pbalance,nodeList,[[]]),
+	register(game,Pgam),
 	register(dir,Pdir),
 	register(balance,Pbal),
 	dispacher:init(Puerto).
@@ -30,7 +32,7 @@ dirlock(N,L)->
 	receive
 		{lock,P,T} -> Pid!{lock,P,T};
 		ok    -> ok;
-		error -> waitunlock(L),dirlock(random:uniform(?P),L)%%con max hay mayor probabilidad mientras mas tiempo pasa
+		error -> waitunlock(L),dirlock(random:uniform(?P),L)
 	end.
 
 waitunlock(List)->
@@ -56,6 +58,15 @@ cath(M,N)->
 				{lock,Pid,T} ->	if T<N  -> 
 										io:format("Gane lock!~n"),
 										cath(M+1,N);
+								   T==N -> %%Si los numeros son iguales desempatan por el nombre del nodo
+										io:format("Empate~n"),
+										Bool = node()<node(Pid),
+										if Bool ->
+											cath(M+1,N);
+										   true ->
+										    Pid!locked,
+										    error
+										end;								    
 								   true ->
 										io:format("Perdi lock!~n"),
 										Pid!locked,
@@ -72,7 +83,7 @@ cath(M,N)->
 
 %~ {add,self(),Nombre}    -> Agrega el nombre(responde ok o error).
 %~ {remove,self(),Nombre} -> Borra el nombre del servidor(no responde).
-%~ {show,self(),Nombre}   -> Muestra todos los nombres del servidor(responde con una lista de nombres).
+%~ {show,self()}          -> Muestra todos los nombres del servidor(responde con una lista de nombres).
 %~ {is,Pid,Nombre}        -> Verifica si el nombre ya esta en uso(responde con true o false).
 
 directory(List,State)->
@@ -156,7 +167,7 @@ getuserlist(Pid)->
 	                          [node()|nodes()]),
 	La = reduce(fun(A,B) -> ordsets:union(A,B) end,ordsets:new(),Lw),
 	Ls = lists:sort(La),
-	Pid!Ls.
+	Pid!{dir,Ls}.
 
 getuserlistaux(Pid)->
 	dir!{showhere,self()},
@@ -168,23 +179,23 @@ getuserlistaux(Pid)->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%%Formato de comunicacion%%%%
-%~ {add,self(),Piduser}               -> 
-%~ {con,self(),Gid,Piduser}           -> 
-%~ {obs,self(),Piduser}               -> 
-%~ {removeobs,self(),Gid,Piduser}     -> 
-%~ {removeplayes,self(),Gid,Piduser}  ->
-%~ {show,self()}                      ->
+%~ {add,self(),Piduser}               -> Crea una partida(responde con start cuando alguien se conecta)
+%~ {con,self(),Gid,Piduser}           -> Se conecta a una partida(responde ok o error)
+%~ {obs,self(),Gid,Piduser}           -> Observa una partida(responde ok o error)
+%~ {removeobs,self(),Gid,Piduser}     -> Remueve a un observador de la partida(no responde)
+%~ {remove,Gid}                       -> Borra una partida(no responde)
+%~ {show,self()}                      -> Muestra una lista con todas la partidas(responde con una lista de partidas)
+%~ {mov,self(),Gid,User,Game}         -> Realiza un cambio en la partida(responde con ok o error)
 
-%%Existe la funcion play(Jug1,Jug2,[]) o play({Jug1,Cid},[]).
+getNextid()->1.%%Debe ser una string
 
-getNextid()->1.
-
-games(List)->%%Problamas de concurrencia
-	receive%%Nextid unica en todos los nodos!!!!!
+games(List)->
+	receive
 		{add,Pid,User}->%%Agrega una partida en el nodo
-			Pgm=spawn(?MODULE,play,[{User,Pid},[]]),%%Creo la partida
-			L=maps:put(getNextid(),{Pgm,User,ordsets:new()},List);%%La almaceno
-		{con,Pid,Gid,User}->%%Conecta un usuario a una partida
+			Gid=getNextid(),
+			Pgm=spawn(?MODULE,play,[Gid,User,Pid,[]]),
+			L=maps:put(Gid,{Pgm,User,ordsets:new()},List);
+		{con,Pid,Gid,User}->%%Se conecta a una partida
 			case maps:find(Gid,List) of
 				{ok,{P1,N1,L1}} ->
 					L = maps:put(Gid,{P1,N1,User,L1},maps:remove(Gid,List)),
@@ -194,25 +205,35 @@ games(List)->%%Problamas de concurrencia
 					L=List,
 					Pid!error
 			end;
-		{obs,Pid,Gid,User}->%%Agrega observador a un juego
+		{obs,Pid,Gid,User}->%%Agrega un observador a un juego
 			L = addObs(Pid,Gid,User,List);
-		{removeobs,Pid,Gid,User}->%%Saca un observador del juego
-			L = removeObs(Pid,Gid,User,List);
-		{removeplayer,Pid,Gid,User} ->%%Borra un jugador(si debe)
-			L = leavePlayer(Pid,Gid,User,List);
-		{showhere,Pid}->%%Muestra las partidas internas
+		{removeobs,_Pid,Gid,User}->%%Saca un observador del juego
+			L = removeObs(Gid,User,List);
+		{show,Pid}->%%Muestra todas la partidas
+			L = List,
+			spawn(?MODULE,showall,[Pid]);
+		{showhere,Pid}->%%Muestra las partidas locales
 			Pid!maps:to_list(List),
 			L = List;
-		{show,Pid}->
+		{remove,_Pid,Gid}->%%Borra una partida
+			L = maps:remove(Gid,List);
+		{mov,Pid,User,Gid,Game}->
 			L = List,
-			spawn(?MODULE,showall,[Pid])
+			case maps:find(Gid,List) of
+				{ok,{P1,User,_N2,_L1}} ->
+					P1!{mov,Pid,User,Game};
+				{ok,{P1,_N1,User,_L1}} ->
+					P1!{mov,Pid,User,Game};
+				_Error               ->
+					Pid!error
+			end
 	end,
 	games(L).
 
 showall(Pid)->
 	Lm = lists:map(fun(V) -> {game,V}!{showhere,self()},receive X -> X after ?TIMEOUT -> [] end end,[node()|nodes()]),
 	Ls = lists:sort(lists:append(Lm)),
-	Pid!Ls.
+	Pid!{game,Ls}.
 
 addObs(Pid,Gid,User,List)->
 	case maps:find(Gid,List) of
@@ -230,35 +251,106 @@ addObs(Pid,Gid,User,List)->
 	end,
 	L.
 
-removeObs(Pid,Gid,User,List)->
+removeObs(Gid,User,List)->
 	case maps:find(Gid,List) of
 			{ok,{P1,N1,L1}} ->
-				L = maps:put(Gid,{P1,N1,ordsets:del_element(User,L1)},maps:remove(Gid,List)),
-				P1!{obs,User},
-				Pid!ok;
+				P1!{robs,User},
+				maps:put(Gid,{P1,N1,ordsets:del_element(User,L1)},maps:remove(Gid,List));
 			{ok,{P1,N1,N2,L1}} ->
-				L = maps:put(Gid,{P1,N1,N2,ordsets:del_element(User,L1)},maps:remove(Gid,List)),
-				P1!{obs,User},
-				Pid!ok;
+				P1!{robs,User},
+				maps:put(Gid,{P1,N1,N2,ordsets:del_element(User,L1)},maps:remove(Gid,List));
 			_Error ->
-				L=List,
-				Pid!error
-	end,
-	L.
+				List
+	end.
 
-leavePlayer(Pid,Gid,User,List)->
-	case maps:find(Gid,List) of
-		{ok,{_P1,User,_L1}}->
-			L=maps:remove(Gid,List),
-			Pid!ok;
-		{ok,{_P1,User,_N1,_L1}}->
-			L=maps:remove(Gid,List),
-			Pid!ok;
-		{ok,{_P1,_N1,User,_L1}}->
-			L=maps:remove(Gid,List),
-			Pid!ok;
-		_Error              ->
-			L=List,
-			Pid!error
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%PARTIDA%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+play(Gid,PidUser,PidPcomando,List)->
+	receive
+		{obs,Obs}    ->
+			play(Gid,PidUser,PidPcomando,[Obs|List]);
+		{robs,Obs}   ->
+			play(Gid,PidUser,PidPcomando,lists:delete(Obs,List));
+		{new,PidPlayer} ->
+			lists:forearch(fun(P)-> P!{start,Gid} end,[PidPcomando|List]),
+			play(Gid,PidUser,PidPlayer,List,[0,0,0,0,0,0,0,0,0],1)
+	end.
+
+play(Gid,Player1,Player2,List,Game,Turno)->
+	T=(Turno+1) rem 2,
+	case T of
+		0 -> C=Player1,D=Player2;
+		1 -> C=Player2,D=Player1
 	end,
-	L.
+	Current=C,
+	Next=D,
+	receive 
+		{obs,Obs}    ->
+			play(Gid,Player1,Player2,[Obs|List],Game,Turno);
+		{robs,Obs}   ->
+			play(Gid,Player1,Player2,lists:delete(Obs,List),Game,Turno);
+		{mov,Pid,Current,Ngame}->
+			case isok(Game,Ngame,T+1) of
+				ok ->
+					Pid!ok,
+					lists:foreach(fun(P)-> P!{Gid,Ngame} end,List),
+					play(Gid,Player1,Player2,List,Ngame,T+1);
+				error ->
+					Pid!error,
+					play(Gid,Player1,Player2,List,Game,T+1);
+				win   ->
+					Pid!ok,
+					Current!{ok,"Ganaste! "++Gid},
+					Next!{ok,"Perdiste:( "++Gid};
+				draw  ->
+					Pid!ok,
+					Current!{ok,"Empate en "++Gid},
+					Next!{ok,"Empate en "++Gid}
+			end
+	end.
+
+isok(A,B,N)->
+	case differ(A,B) of
+		1     ->
+			isover(B,N);
+		_More ->
+			error
+	end.
+
+differ(A,B)->differ(A,B,0).
+differ(A,B,N)->
+	Ba=(length(A)==0),
+	Bb=(length(B)==0),
+	if (Ba and Bb) ->
+			N;
+	   (Ba or Bb)  ->
+			3;
+	   true        ->
+			Bool=lists:nth(1,A)==lists:nth(1,B),
+			if Bool -> 
+					M=N;
+				true->
+					M=N+1
+			end,
+			differ(lists:nthtail(1,A),lists:nthtail(1,B),M)
+	end.
+
+isover(Game,N)->
+	case Game of
+		[N,N,N,_,_,_,_,_,_] -> win;
+		[_,_,_,N,N,N,_,_,_] -> win;
+		[_,_,_,_,_,_,N,N,N] -> win;
+		[N,_,_,N,_,_,N,_,_] -> win;
+		[_,N,_,_,N,_,_,N,_] -> win;
+		[_,_,N,_,_,N,_,_,N] -> win;
+		[N,_,_,_,N,_,_,_,N] -> win;
+		[_,_,N,_,N,_,N,_,_] -> win;
+		List                ->
+			case lists:foldl(fun(X,Mul) -> X+Mul end,1,List) of
+				0     -> ok;
+				_More -> draw
+			end
+	end.
+		

@@ -3,8 +3,6 @@
 -define(OPCIONES,[{active,false},{mode, binary}]).
 -import(pbalance,[getNode/0]).
 
-%%Se encarga a obtener un nombre de usuario y redireccionar los mensajes al pcomando correspondiente
-
 getName(Socket)->
 	case string:tokens(inbox(Socket)," ") of
 		["CON",Cid,Nombre] ->
@@ -26,27 +24,32 @@ getName(Socket)->
 interfaz(Client,Nombre)->
 	case string:tokens(inbox(Client)," ") of
 		[Comand|[Id|Op]] ->
-			spawn(getNode(),pcomando,reverse,[[Comand|Op],self()]),
+			spawn(getNode(),pcomando,comand,[self(),lists:append([Comand|Op])]),
 			receive 
 				{ok,X}    ->
-					gen_tcp:send(Client,"OK "++Id++" "++X);
+					gen_tcp:send(Client,"OK "++Id++" "++X),
+					interfaz(Client,Nombre);
 				{error,Y} ->
-					gen_tcp:send(Client,"ERROR "++Id++" "++Y);
+					gen_tcp:send(Client,"ERROR "++Id++" "++Y),
+					interfaz(Client,Nombre);
+				{msg,Z}   ->
+					gen_tcp:send(Client,"SERVER "++Z),
+					interfaz(Client,Nombre);
 				close   ->
 					gen_tcp:send(Client,"OK "++Id),
 					clean(Client,Nombre)
 			end;
 		["ERROR"] ->
-			clean(Client,Nombre)
-	end,
-	interfaz(Client,Nombre).
+			clean(Client,Nombre);
+		_L -> io:format("What???~n")
+	end.
 
 clean(Sk) ->
 	receive after 500 -> ok end,
 	gen_tcp:close(Sk),
 	exit(ok).
 	
-clean(Sk,Nombre)->
+clean(Sk,Nombre)->%%Quitar tambien de games
 	dir!{remove,self(),Nombre},
 	clean(Sk).
 
@@ -59,6 +62,7 @@ newName(Nombre)->
 
 inbox()-> receive X -> X end.
 inbox(Socket)->
+	io:format("Wait~n"),
 	case gen_tcp:recv(Socket,0) of
 		{ok,<<S/binary>>} -> binary:bin_to_list(S);
 		{error,_Reason}   -> gen_tcp:send(Socket,"Error conexionerror"),"ERROR"
