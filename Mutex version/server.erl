@@ -56,10 +56,8 @@ cath(M,N)->
 			receive 
 				locked       -> cath(M+1,N);
 				{lock,Pid,T} ->	if T<N  -> 
-										io:format("Gane lock!~n"),
 										cath(M+1,N);
 								   T==N -> %%Si los numeros son iguales desempatan por el nombre del nodo
-										io:format("Empate~n"),
 										Bool = node()<node(Pid),
 										if Bool ->
 											cath(M+1,N);
@@ -68,7 +66,6 @@ cath(M,N)->
 										    error
 										end;								    
 								   true ->
-										io:format("Perdi lock!~n"),
 										Pid!locked,
 										error
 								end
@@ -122,24 +119,19 @@ directory(List,State)->
 	end.
 
 addelement({Pid,Nombre},List,State)->
-	io:format("En add ~p a ~p ~n",[Nombre,ordsets:to_list(List)]),
 	case ordsets:is_element(Nombre,List) of
 				true   -> 
-					io:format("Descartando elemento~n"),Pid!error,L=List;
+					Pid!error,L=List;
 				_False -> 
 					case State of
-						lock -> io:format("Esperando~n"),waitunlock(List);
+						lock -> waitunlock(List);
 						unlock -> ok
 					end,
-					io:format("Estoy en unlcok~n"),
 					dirlock(List),%%Duerme hasta que pueda escribir
-					%~ receive after 10000-> ok end,
-					io:format("Preguntando y escribiendo~n"),
 					case isavailiable(Nombre) of
-					   false -> io:format("No guarde~n"),Pid!error,L=List;
-					   true  -> io:format("Si guarde~n"),Pid!ok,L=ordsets:add_element(Nombre,List)					  
+					   false -> Pid!error,L=List;
+					   true  -> Pid!ok,L=ordsets:add_element(Nombre,List)					  
 					end,
-					io:format("Liberando~n"),
 					dirunlock()
 	end,
 	L.
@@ -187,14 +179,15 @@ getuserlistaux(Pid)->
 %~ {show,self()}                      -> Muestra una lista con todas la partidas(responde con una lista de partidas)
 %~ {mov,self(),Gid,User,Game}         -> Realiza un cambio en la partida(responde con ok o error)
 
-getNextid()->1.%%Debe ser una string
+getNextid()->"1".%%Debe ser una string
 
 games(List)->
 	receive
 		{add,Pid,User}->%%Agrega una partida en el nodo
 			Gid=getNextid(),
 			Pgm=spawn(?MODULE,play,[Gid,User,Pid,[]]),
-			L=maps:put(Gid,{Pgm,User,ordsets:new()},List);
+			L=maps:put(Gid,{Pgm,User,ordsets:new()},List),
+			Pid!{ok,Gid};
 		{con,Pid,Gid,User}->%%Se conecta a una partida
 			case maps:find(Gid,List) of
 				{ok,{P1,N1,L1}} ->
@@ -274,7 +267,8 @@ play(Gid,PidUser,PidPcomando,List)->
 		{robs,Obs}   ->
 			play(Gid,PidUser,PidPcomando,lists:delete(Obs,List));
 		{new,PidPlayer} ->
-			lists:forearch(fun(P)-> P!{start,Gid} end,[PidPcomando|List]),
+			PidPcomando!{start,Gid},
+			lists:foreach(fun(P)-> P!{msg,"Inicia "++Gid} end,[PidUser|[PidPlayer|List]]),
 			play(Gid,PidUser,PidPlayer,List,[0,0,0,0,0,0,0,0,0],1)
 	end.
 
@@ -291,51 +285,41 @@ play(Gid,Player1,Player2,List,Game,Turno)->
 			play(Gid,Player1,Player2,[Obs|List],Game,Turno);
 		{robs,Obs}   ->
 			play(Gid,Player1,Player2,lists:delete(Obs,List),Game,Turno);
-		{mov,Pid,Current,Ngame}->
-			case isok(Game,Ngame,T+1) of
-				ok ->
+		{mov,Pid,Next,_Lugar}->
+			Pid!error;
+		{mov,Pid,Current,Lugar}->%%Mejorar Mensajes de Server
+			case isok(Game,Lugar,T+1) of
+				{ok,Ngame} ->
 					Pid!ok,
-					lists:foreach(fun(P)-> P!{Gid,Ngame} end,List),
+					lists:foreach(fun(P)-> P!{msg,Gid++tostring(Ngame)} end,List),
 					play(Gid,Player1,Player2,List,Ngame,T+1);
 				error ->
 					Pid!error,
-					play(Gid,Player1,Player2,List,Game,T+1);
-				win   ->
+					play(Gid,Player1,Player2,List,Game,T);
+				{win,Ngame}   ->
 					Pid!ok,
-					Current!{ok,"Ganaste! "++Gid},
-					Next!{ok,"Perdiste:( "++Gid};
-				draw  ->
+					Current!{msg,"Ganaste! "++Gid++" "++tostring(Ngame)},
+					Next!{ok,"Perdiste:( "++Gid++" "++tostring(Ngame)};
+				{draw,Ngame}  ->
 					Pid!ok,
-					Current!{ok,"Empate en "++Gid},
-					Next!{ok,"Empate en "++Gid}
+					Current!{msg,"Empate en "++Gid++" "++tostring(Ngame)},
+					Next!{ok,"Empate en "++Gid++" "++tostring(Ngame)}
 			end
 	end.
 
-isok(A,B,N)->
-	case differ(A,B) of
-		1     ->
-			isover(B,N);
-		_More ->
-			error
+isok(Game,Lugar,N)->
+	Bool=lists:nth(Lugar,Game)==0,
+	if Bool->
+			Ngame=change(Lugar,Game,N),
+			isover(Ngame,N);
+		true -> error
 	end.
 
-differ(A,B)->differ(A,B,0).
-differ(A,B,N)->
-	Ba=(length(A)==0),
-	Bb=(length(B)==0),
-	if (Ba and Bb) ->
-			N;
-	   (Ba or Bb)  ->
-			3;
-	   true        ->
-			Bool=lists:nth(1,A)==lists:nth(1,B),
-			if Bool -> 
-					M=N;
-				true->
-					M=N+1
-			end,
-			differ(lists:nthtail(1,A),lists:nthtail(1,B),M)
-	end.
+change(N,Game,E)->
+	A=lists:sublist(Game,1,N-1),
+	B=[E],
+	C=lists:sublist(Game,N+1,length(Game)),
+	A++B++C.
 
 isover(Game,N)->
 	case Game of
@@ -353,4 +337,3 @@ isover(Game,N)->
 				_More -> draw
 			end
 	end.
-		

@@ -10,7 +10,8 @@ getName(Socket)->
 			receive
 			   ok      ->
 					gen_tcp:send(Socket,"OK "++Cid),
-					interfaz(Socket,Nombre);
+					P=spawn(?MODULE,listen,[Socket,Nombre]),
+					interfaz(Socket,Nombre,P);
 			   error  ->
 					gen_tcp:send(Socket, "ERROR "++Cid++" Used"),
 					getName(Socket)
@@ -21,35 +22,39 @@ getName(Socket)->
 			clean(Socket)
 	end.
 
-interfaz(Client,Nombre)->
-	case string:tokens(inbox(Client)," ") of
-		[Comand|[Id|Op]] ->
-			spawn(getNode(),pcomando,comand,[self(),lists:append([Comand|Op])]),
-			receive 
-				{ok,X}    ->
-					gen_tcp:send(Client,"OK "++Id++" "++X),
-					interfaz(Client,Nombre);
-				{error,Y} ->
-					gen_tcp:send(Client,"ERROR "++Id++" "++Y),
-					interfaz(Client,Nombre);
-				{msg,Z}   ->
-					gen_tcp:send(Client,"SERVER "++Z),
-					interfaz(Client,Nombre);
-				close   ->
-					gen_tcp:send(Client,"OK "++Id),
-					clean(Client,Nombre)
-			end;
-		["ERROR"] ->
-			clean(Client,Nombre);
-		_L -> io:format("What???~n")
+listen(Client,Nombre)->
+	receive 
+		{res,X}    ->
+			gen_tcp:send(Client,X),
+			listen(Client,Nombre);
+		{msg,Y}    ->
+			gen_tcp:send(Client,"SERVER: "++Y),
+			listen(Client,Nombre);
+		close   ->
+			gen_tcp:send(Client,"Cerrando la conexion~n"),
+			clean(Client,Nombre)
 	end.
 
+interfaz(Client,Nombre,Plis)->
+	case string:tokens(inbox(Client)," ") of
+		["LSG",Id]->spawn(getNode(),pcomando,comand,[Plis,Id,{lsg}]);
+		["NEW",Id]->spawn(getNode(),pcomando,comand,[Plis,Id,{new}]);
+		["HLP",Id]->spawn(getNode(),pcomando,comand,[Plis,Id,{help}]);
+		["LEA",Id,Game]->spawn(getNode(),pcomando,comand,[Plis,Id,{leave,Game}]);
+		["OBS",Id,Game]->spawn(getNode(),pcomando,comand,[Plis,Id,{obs,Game}]);
+		["ACC",Id,Game]->spawn(getNode(),pcomando,comand,[Plis,Id,{acc,Game}]);
+		["PLA",Id,Game,Lugar]->spawn(getNode(),pcomando,comand,[Plis,Id,{pla,Game,Lugar}]);
+		["BYE",Id]->spawn(getNode(),pcomando,comand,[Plis,Id,{bye}]);
+		["ERROR"] ->clean(Client,Nombre);
+		_L    -> gen_tcp:send(Client,"PARSE ERROR~n")
+	end,
+	interfaz(Client,Nombre,Plis).
+
 clean(Sk) ->
-	receive after 500 -> ok end,
 	gen_tcp:close(Sk),
 	exit(ok).
 	
-clean(Sk,Nombre)->%%Quitar tambien de games
+clean(Sk,Nombre)->
 	dir!{remove,self(),Nombre},
 	clean(Sk).
 
@@ -60,9 +65,7 @@ newName(Nombre)->
 		error -> error
 	end.
 
-inbox()-> receive X -> X end.
 inbox(Socket)->
-	io:format("Wait~n"),
 	case gen_tcp:recv(Socket,0) of
 		{ok,<<S/binary>>} -> binary:bin_to_list(S);
 		{error,_Reason}   -> gen_tcp:send(Socket,"Error conexionerror"),"ERROR"

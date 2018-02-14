@@ -6,7 +6,7 @@
 
 getNode()->
 	balance!{min,self()},
-	receive	X -> X end.
+	receive	{nd,X} -> X end.
 
 nodeList(List)->
 	receive
@@ -17,7 +17,7 @@ nodeList(List)->
 		{min,P}    ->
 			L=List,
 			{A,_B} = minimo(L),
-			P!A
+			P!{nd,A}
 	end,
 	nodeList(L).
 

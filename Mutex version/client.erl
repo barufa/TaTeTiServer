@@ -33,8 +33,10 @@ username(Socket)->
 	end.
 
 writer(Server)->
-	Comando = string:strip(io:get_line("(Con comandid)-> "), right, $\n),
-	spawn(gen_tcp,send,[Server,Comando]),
+	Comando = string:strip(io:get_line("-> "), right, $\n),
+	[A|B] = string:tokens(Comando," "),
+	Com = lists:foldl(fun(X,R)-> R++" "++X end,"",[A|["34"|B]]),
+	spawn(gen_tcp,send,[Server,Com]),
 	writer(Server).
 
 reader(Server)-> %%Falta modificar

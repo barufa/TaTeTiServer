@@ -1,0 +1,8 @@
+C1->NEW
+Crea un juego
+C3->OBS 1
+C2->ACC 1
+Se une a un juego junto con un observador
+C4->OBS 1
+C3->LEA 1
+Un observador deja el juego
