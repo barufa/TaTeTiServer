@@ -1,12 +1,9 @@
 -module(pbalance).
 -compile(export_all).
 
-%%Lleva una lista con la carga de los nodos.
-%%Se consulta a traves de la funcion getNode, que "retorna" el nodo menos cargado
-
 getNode()->
 	balance!{min,self()},
-	receive	X -> X end.
+	receive	{nd,X} -> X end.
 
 nodeList(List)->
 	receive
@@ -15,10 +12,9 @@ nodeList(List)->
 			Ll=lists:filter(fun({X,_})-> X/=S end,List),
 			L=[{S,N}|Ll];
 		{min,P}    ->
-			io:format("Pbalance: ~p~n",[List]),
 			L=List,
 			{A,_B} = minimo(L),
-			P!A
+			P!{nd,A}
 	end,
 	nodeList(L).
 

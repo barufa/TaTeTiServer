@@ -10,6 +10,7 @@ compile:
 	erl -compile client.erl	
 	erl -compile psocket.erl
 	erl -compile server.erl
+	erl -compile make.erl
 
 clean:
 	rm -f *.bea? *.dump

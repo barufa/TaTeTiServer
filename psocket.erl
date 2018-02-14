@@ -3,17 +3,16 @@
 -define(OPCIONES,[{active,false},{mode, binary}]).
 -import(pbalance,[getNode/0]).
 
-%%Se encarga a obtener un nombre de usuario y redireccionar los mensajes al pcomando correspondiente
-
 getName(Socket)->
 	case string:tokens(inbox(Socket)," ") of
 		["CON",Cid,Nombre] ->
-			case newName(Nombre) of
+			dir!{add,self(),Nombre},
+			receive
 			   ok      ->
-					%~ Pid=spawn(getNode(),pcomando,reverse,[self()]),
 					gen_tcp:send(Socket,"OK "++Cid),
-					interfaz(Socket,Nombre);
-			   _Error  ->
+					P=spawn(?MODULE,listen,[Socket,Nombre]),
+					interfaz(Socket,Nombre,P);
+			   error  ->
 					gen_tcp:send(Socket, "ERROR "++Cid++" Used"),
 					getName(Socket)
 			end;
@@ -23,24 +22,35 @@ getName(Socket)->
 			clean(Socket)
 	end.
 
-interfaz(Client,Nombre)->
+listen(Client,Nombre)->
+	receive 
+		{res,X}    ->
+			gen_tcp:send(Client,X),
+			listen(Client,Nombre);
+		{msg,Y}    ->
+			gen_tcp:send(Client,"UPD "++Y),
+			listen(Client,Nombre);
+		close   ->
+			gen_tcp:send(Client,"Cerrando la conexion~n"),
+			clean(Client,Nombre)
+	end.
+
+interfaz(Client,Nombre,Plis)->
 	case string:tokens(inbox(Client)," ") of
-		[Comand|[Id|Op]] ->
-			spawn(getNode(),pcomando,comando,[[Comand|Op],self()]),
-			receive 
-				{ok,X}    ->
-					gen_tcp:send(Client,"OK "++Id++" "++X);
-				{error,Y} ->
-					gen_tcp:send(Client,"ERROR "++Id++" "++Y);
-				{close}   ->
-					gen_tcp:send(Client,"OK "++Id),
-					clean(Client,Nombre)
-			end
+		["LSG",Id]->spawn(getNode(),pcomando,comand,[Plis,Id,{lsg}]);
+		["NEW",Id]->spawn(getNode(),pcomando,comand,[Plis,Id,{new}]);
+		["HLP",Id]->spawn(getNode(),pcomando,comand,[Plis,Id,{help}]);
+		["LEA",Id,Game]->spawn(getNode(),pcomando,comand,[Plis,Id,{leave,Game}]);
+		["OBS",Id,Game]->spawn(getNode(),pcomando,comand,[Plis,Id,{obs,Game}]);
+		["ACC",Id,Game]->spawn(getNode(),pcomando,comand,[Plis,Id,{acc,Game}]);
+		["PLA",Id,Game,Lugar]->spawn(getNode(),pcomando,comand,[Plis,Id,{pla,Game,toint(Lugar)}]);
+		["BYE",Id]->spawn(getNode(),pcomando,comand,[Plis,Id,{bye}]);
+		["ERROR"] ->clean(Client,Nombre);
+		_L    -> gen_tcp:send(Client,"PARSE ERROR~n")
 	end,
-	interfaz(Client,Nombre).
+	interfaz(Client,Nombre,Plis).
 
 clean(Sk) ->
-	receive after 500 -> ok end,
 	gen_tcp:close(Sk),
 	exit(ok).
 	
@@ -48,19 +58,19 @@ clean(Sk,Nombre)->
 	dir!{remove,self(),Nombre},
 	clean(Sk).
 
-newName(Nombre)->%%Verifica si un nombre esta disponible y lo agrega
-	 dir!{is,self(),Nombre},
-	 receive
-	 	true   ->
-	 		error;
-	 	_False ->
-			dir!{add,self(),Nombre},
-	 		ok
-	 end.
+newName(Nombre)->
+	dir!{add,self(),Nombre},
+	receive
+		ok    -> ok;
+		error -> error
+	end.
 
-inbox()-> receive X -> X end.
 inbox(Socket)->
 	case gen_tcp:recv(Socket,0) of
 		{ok,<<S/binary>>} -> binary:bin_to_list(S);
-		{error,_Reason}   -> gen_tcp:send(Socket,"Error conexionerror"),error
+		{error,_Reason}   -> gen_tcp:send(Socket,"Error conexionerror"),"ERROR"
 	end.
+
+toint(String)->
+	{A,_B}=string:to_integer(String),
+	A.
