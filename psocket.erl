@@ -56,6 +56,7 @@ clean(Sk) ->
 	
 clean(Sk,Nombre)->
 	dir!{remove,self(),Nombre},
+	game!{removeall,self()},
 	clean(Sk).
 
 newName(Nombre)->

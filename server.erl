@@ -161,6 +161,11 @@ games(List)->
 			L = addObs(Pid,Gid,User,List);
 		{removeobs,_Pid,Gid,User}  ->
 			L = removeObs(Gid,User,List);
+		{removeuser,User}          ->
+			L = removeuser(User,List);
+		{removeall,User}           ->
+			L = List,
+			spawn(lists,foreach,[fun(X)-> {game,X}!{removeuser,User} end,[node()|nodes()]]);
 		{show,Pid}                 ->
 			L = List,
 			spawn(?MODULE,showall,[Pid]);
@@ -190,6 +195,20 @@ games(List)->
 			end
 	end,
 	games(L).
+	
+removeuser(User,List)->
+	L=lists:map(fun(X)-> isUser(X,User) end,maps:to_list(List)),
+	lists:foreach(fun(X)-> game!{remove,self(),X} end,lists:append(L)),
+	List.
+	
+	
+isUser(C,User)->
+	case C of
+		{Gid,{_,User,_}}   -> [Gid];
+		{Gid,{_,_,User,_}} -> [Gid];
+		{Gid,{_,User,_,_}} -> [Gid];
+		_Otherwise         -> []
+	end.
 
 getNode(Gid,Pid)->
 	Lm=lists:map(fun(X)-> {game,X}!{is,self(),Gid},receive true->[X];false->[] end end,[node()|nodes()]),
