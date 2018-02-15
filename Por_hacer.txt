@@ -1,4 +1,4 @@
-Implementar un cliente decente que utilice ComandId
+Conseguir un Gid practico unico(como un numero)
 Probar el servidor buscando errores
 Mejorar comunicacion entre el servidor y el cliente(mejorar los mensajes)
 Si se cae el cliente, borrarlo por completo del servidor(directorio,partidas,psocket,pcomando)

@@ -15,23 +15,28 @@ comand(Client,CId,Comand)->
 		{help}->
 			Client!{res,okid(CId)++helpstring()};
 		{obs,Game}->
-			game!{obs,self(),Game,Client},
-			receive 
-				ok    ->
-					Client!{res,okid(CId)++Game};
-				error ->
-					Client!{res,errorid(CId)++Game}
+			case getNode(Game) of
+				error     -> 
+					Client!{res,errorid(CId)++Game};
+				{ok,Node} ->
+					{game,Node}!{obs,self(),Game,Client},
+					receive 
+						ok    ->
+							Client!{res,okid(CId)++Game};
+						error ->
+							Client!{res,errorid(CId)++Game}
+					end
 			end;
 		{leave,Game}->
-			game!{removeobs,self(),Game,Client};
+			{game,getNode(Game)}!{removeobs,self(),Game,Client};
 		{acc,Game}->
-			game!{con,self(),Game,Client},
+			{game,getNode(Game)}!{con,self(),Game,Client},
 			receive
 				ok    -> Client!{res,okid(CId)++Game};
 				error -> Client!{res,errorid(CId)++Game}
 			end;
 		{pla,Game,Lugar}->
-			game!{mov,self(),Client,Game,Lugar},
+			{game,getNode(Game)}!{mov,self(),Client,Game,Lugar},
 			receive
 				ok    -> Client!{res,okid(CId)++Game};
 				error -> Client!{res,errorid(CId)++Game}
@@ -40,13 +45,19 @@ comand(Client,CId,Comand)->
 			Client!close
 	end.
 
-helpstring()->"Mensaje de ayuda~n".
+helpstring()->"Seguro hay un deadlock, desisti~n".
 okid(Id)-> "OK "++Id++" ".
 errorid(Id)->"ERROR "++Id++" ".
 tr(Ele)->
 	case Ele of
-		{Gid,{_,_,_}}   -> Gid++" Esperando jugador~n";
-		{Gid,{_,_,_,_}} -> Gid++" Jugando~n"
+		{Gid,{_,_,_}}   -> Gid++" Esperando jugador ~n";
+		{Gid,{_,_,_,_}} -> Gid++" Jugando ~n"
 	end.
-		
-		
+
+getNode(Gid)->
+	spawn(server,getNode,[Gid,self()]),
+	receive 
+		{nd,error} -> error;
+		{nd,N}     -> {ok,N}
+	end.
+	

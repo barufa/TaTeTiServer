@@ -169,6 +169,12 @@ games(List)->
 			L = List;
 		{remove,_Pid,Gid}          ->
 			L = maps:remove(Gid,List);
+		{is,Pid,Gid}               ->
+			L = List,
+			case maps:find(Gid,List) of
+				{ok,_} -> Pid!true;
+				_Error -> Pid!false
+			end;
 		{mov,Pid,User,Gid,Lugar}   ->
 			io:format("Llego alguna juagada~n"),
 			L = List,
@@ -185,8 +191,15 @@ games(List)->
 	end,
 	games(L).
 
-nextId(N)->
-	receive {id,Pid} -> Pid!{id,tostring(N)++atom_to_list(node())} end,
+getNode(Gid,Pid)->
+	Lm=lists:map(fun(X)-> {game,X}!{is,self(),Gid},receive true->[X];false->[] end end,[node()|nodes()]),
+	case lists:append(Lm) of
+		[]     -> Pid!{nd,error};
+		[H|_T] -> Pid!{nd,H}
+	end.
+
+nextId(N)->%%Unico entre los nodos(solucionar)
+	receive {id,Pid} -> Pid!{id,tostring(N)} end,
 	nextId(N+1).
 
 getNextid()->
