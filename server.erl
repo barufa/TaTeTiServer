@@ -14,14 +14,10 @@ reduce(F,Z,X)->
 init(Puerto)->
 	io:format("Iniciando nodo ~p~n",[node()]),
 	spawn(pstat,monitor,[]),
-	Pdir=spawn(?MODULE,directory,[ordsets:new(),unlock]),
-	Pgam=spawn(?MODULE,games,[maps:new()]),
-	Pbal=spawn(pbalance,nodeList,[[]]),
-	Pnid=spawn(?MODULE,nextId,[0]),
-	register(game,Pgam),
-	register(dir,Pdir),
-	register(balance,Pbal),
-	register(nid,Pnid),
+	register(id,spawn(?MODULE,manageId,[10])),%%Numero mas grande
+	register(dir,spawn(?MODULE,directory,[ordsets:new(),unlock])),
+	register(game,spawn(?MODULE,games,[maps:new()])),
+	register(balance,spawn(pbalance,nodeList,[[]])),
 	dispacher:init(Puerto).
 
 %%%%%%%%%%%%%%%%%%MUTEX%%%%%%%%%%%%%%%%%%
@@ -143,7 +139,7 @@ getuserlistaux(Pid)->
 games(List)->
 	receive
 		{add,Pid,User}             ->
-			Gid=getNextid(),
+			Gid=getNextid(List),
 			Pgm=spawn(?MODULE,play,[Gid,User,Pid,[]]),
 			L=maps:put(Gid,{Pgm,User,ordsets:new()},List),
 			Pid!{ok,Gid};
@@ -200,8 +196,7 @@ removeuser(User,List)->
 	L=lists:map(fun(X)-> isUser(X,User) end,maps:to_list(List)),
 	lists:foreach(fun(X)-> game!{remove,self(),X} end,lists:append(L)),
 	List.
-	
-	
+
 isUser(C,User)->
 	case C of
 		{Gid,{_,User,_}}   -> [Gid];
@@ -217,13 +212,12 @@ getNode(Gid,Pid)->
 		[H|_T] -> Pid!{nd,H}
 	end.
 
-nextId(N)->%%Unico entre los nodos(solucionar)
-	receive {id,Pid} -> Pid!{id,tostring(N)} end,
-	nextId(N+1).
-
-getNextid()->
-	nid!{id,self()},
-	receive {id,S} -> S end.
+getNextid(L)->
+	Lt = lists:map(fun({Gid,_})-> Gid end,maps:to_list(L)),
+	case Lt of
+		[]      -> 0;
+		[_H|_T] -> lists:max(Lt)
+	end.
 
 showall(Pid)->
 	Lm = lists:map(fun(V) -> {game,V}!{showhere,self()},receive X -> X after ?TIMEOUT -> [] end end,[node()|nodes()]),
