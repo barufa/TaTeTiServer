@@ -191,7 +191,42 @@ games(List)->
 			end
 	end,
 	games(L).
+
+managaId(N)->
+	lists:foreach(fun(X)->{id,X}!{is,self(),N} end,nodes()),
+	case cathId(0,N) of
+		true  -> nodeId(N);
+		false -> managaId(random:uniform(?P))
+	end.
 	
+cathId(N,R)->
+	Bool = length(nodes()) < N+1,
+	if Bool ->
+		true;
+	   true -> 	
+	   receive
+		{id,R,false} -> cathId(N+1,R);
+		{id,R,true}  -> false;
+		{is,Pid,M}   -> Pid!{id,M,M==R}
+	   end
+	end.
+
+nodeId(N)->
+	receive
+		{newid,Pid} -> Pid!{id,N};
+		{is,Pid,M}  -> Pid!{id,M,M==N}
+	end,
+	nodeId(N).
+
+getNextid(L)->
+	Lt = lists:map(fun({Gid,_})-> Gid end,maps:to_list(L)),
+	id!{newid,self()},receive {id,N} -> N end,
+	case Lt of
+		[]      -> R="0";
+		[_H|_T] -> R=lists:max(Lt)
+	end,
+	R++"."++tostring(N).
+
 removeuser(User,List)->
 	L=lists:map(fun(X)-> isUser(X,User) end,maps:to_list(List)),
 	lists:foreach(fun(X)-> game!{remove,self(),X} end,lists:append(L)),
@@ -210,13 +245,6 @@ getNode(Gid,Pid)->
 	case lists:append(Lm) of
 		[]     -> Pid!{nd,error};
 		[H|_T] -> Pid!{nd,H}
-	end.
-
-getNextid(L)->
-	Lt = lists:map(fun({Gid,_})-> Gid end,maps:to_list(L)),
-	case Lt of
-		[]      -> 0;
-		[_H|_T] -> lists:max(Lt)
 	end.
 
 showall(Pid)->
