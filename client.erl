@@ -11,6 +11,7 @@ init(Puerto)-> main(?HOST,Puerto).
 main(Host,Puerto)->
 	{ok,Socket} = gen_tcp:connect(Host, Puerto, ?OPCIONES),
 	username(Socket),
+	showcomand(),
 	spawn(?MODULE,writer,[Socket,1]),
 	reader(Socket).
 
@@ -51,6 +52,15 @@ reader(Server)->
 			io:format("Se ha producio un error en el comando anterior: ~p ~n",[binary_to_list(Cambio)]),
 			reader(Server);
 		{error,Reason}        ->
-			io:format("Error: ~p~n",[Reason]),
-			exit(Reason)
+			exit(ok)
 	end.
+
+showcomand()->
+	io:format("Comandos que puede realizar: ~n"),
+	io:format("LSG: Muestra la lista de juegos ~n"),
+	io:format("NEW: crea un nuevo juego(OK Cmid JuegoID) ~n"),
+	io:format("ACC Id: Acepta un juego ~n"),
+	io:format("PLA Id Lug:Pone una ficha en el juego Id en la posicion Lug ~n"),
+	io:format("OBS Id: observa el juego Id ~n"),
+	io:format("LEA Id: Deja de observar el juego ~n"),
+	io:format("BYE: Cierra la conexion ~n").

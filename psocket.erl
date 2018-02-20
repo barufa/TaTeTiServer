@@ -31,7 +31,7 @@ listen(Client,Nombre)->
 			gen_tcp:send(Client,"UPD "++Y),
 			listen(Client,Nombre);
 		close   ->
-			gen_tcp:send(Client,"Cerrando la conexion~n"),
+			gen_tcp:send(Client,"UPD Cerrando la conexion"),
 			clean(Client,Nombre)
 	end.
 
@@ -46,7 +46,7 @@ interfaz(Client,Nombre,Plis)->
 		["PLA",Id,Game,Lugar]->spawn(getNode(),pcomando,comand,[Plis,Id,{pla,Game,toint(Lugar)}]);
 		["BYE",Id]->spawn(getNode(),pcomando,comand,[Plis,Id,{bye}]);
 		["ERROR"] ->clean(Client,Nombre);
-		_L    -> gen_tcp:send(Client,"PARSE ERROR~n")
+		[_C|[Id|_Else]]-> gen_tcp:send(Client,"ERROR "++Id++" PARSE ERROR")
 	end,
 	interfaz(Client,Nombre,Plis).
 
