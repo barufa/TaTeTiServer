@@ -51,8 +51,8 @@ reader(Server)->
 		{ok,<<"ERROR ",Cambio/binary>>} ->
 			io:format("Se ha producio un error en el comando anterior: ~p ~n",[binary_to_list(Cambio)]),
 			reader(Server);
-		{error,Reason}        ->
-			exit(ok)
+		{error,_Reason}        ->
+			ok
 	end.
 
 showcomand()->

@@ -205,7 +205,7 @@ games(List,Lid)->
 getNextid(Lid)->
 	case Lid of
 		[] -> "1";
-		_L -> tostring(lists:max(lists:map(fun(N)-> case string:to_integer(N) of {A,_} -> A end end,Lid)) + 1)
+		_L -> tostring(lists:min(lists:filter(fun(N)-> not lists:member(tostring(N),Lid) end,lists:seq(1,length(Lid)+1))))
 	end.
 
 removeuser(User,List)->
