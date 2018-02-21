@@ -1,0 +1,92 @@
+\documentclass[a4paper]{article}
+\usepackage[spanish]{babel}
+\usepackage{graphicx}
+\begin{document}
+
+\begin{titlepage}  %Título
+
+	\centering % Centrar
+	\scshape % Font linda para las cosas chicas
+	\vspace*{\baselineskip} % Espacio al principio
+	
+	\rule{\textwidth}{1.6pt}\vspace*{-\baselineskip}\vspace*{2pt} % Línea horizontal grande
+	\rule{\textwidth}{0.4pt} % Línea horizontal suave
+	
+	\vspace{0.75\baselineskip} % Espacio pre-título
+	
+	{\LARGE Trabajo Final de Sistemas Operativos} % Título
+	
+	\vspace{0.75\baselineskip} % Espacio post-título
+	
+	\rule{\textwidth}{0.4pt}\vspace*{-\baselineskip}\vspace{3.2pt} % Línea delgada
+	\rule{\textwidth}{1.6pt} % Línea grande
+	
+	\vspace{2\baselineskip} % Espacio post título
+
+	\vspace{\baselineskip} % Espacio
+	{\itshape\Large Bruno Baruffaldi\\} % Lista
+	{\itshape\Large Mauricio Muratori\\}
+    \vspace{\baselineskip} % Espacio
+	
+	\textit{Universidad Nacional de Rosario \\ Facultad de Ciencias Exactas, Ingenier\'ia y Agrimensura} % Afiliación
+	
+	
+	\vspace*{5\baselineskip} %Espacio pre imagen
+    
+    %Imagen
+    \begin{figure}[h] %El h es para que quede en el lugar
+	\centering
+	\includegraphics[width=0.8\textwidth]{FCEIA.jpg}
+	\end{figure}
+    
+    \vfill % Espacio
+		
+	\vspace{0.3\baselineskip} % Espacio
+	
+
+\end{titlepage}
+\large
+\section{Introducci\'on:}
+A continuaci\'on se muestran los detalles de la implementaci\'on del trabajo final de Sistemas Operativos I. El mismo consiste en un servidor de Ta-Te-Ti implementado en el lenguaje Erlang. El c\'odigo esta separado en distintos m\'odulos:
+\begin{itemize}
+\item server.erl
+\item dispatcher.erl
+\item psocket.erl
+\item pstat.erl
+\item pcomando.erl
+\item pbalance.erl
+\end{itemize}
+Se presenta ademas un archivo client.erl que ejemplifica un cliente b\'asico para comunicarse con el servidor.
+
+\section{Desiciones de Dise\~no:}
+\subsection{Comunicaci\'on:}
+El servidor por defecto espera nuevas conexiones a trav\'es del puerto 8000 e interactu\'a con los clientes utilizando sockets TCP.\\
+Para el cliente el servidor funciona como un \'unico programa que se ejecuta en una sola maquina, aunque este puede estar compuesto por distintos nodos que se comunican entre si aprovechando las ventajas del lenguaje Erlang.\\
+La forma general de los comandos que el servidor podr\'a responder es CMD comdid op1 op2 ..., donde CMD es una de los comandos disponibles, comdid es un identificar unico del comando.\\
+La respuesta del servidor sera de la forma OK comdid op1 ... o ERROR comdid op1 ..., aunque ademas el servidor podr\'a enviar al cliente mensajes de la forma UPD op1 op2 ...
+\subsection{Arquitectura:}
+\begin{itemize}
+\item Server: Se encarga de la sincronizacion de los distintos nodos del sistemas y maneja la informaci\'on de los jugadores y las partidas.
+\item Dispatcher: Su tarea es esperar y atender nuevas conexiones.
+\item Psocket: Una vez establecida la conexi\'on, se encarga de la comunicaci\'on entre el cliente y el servidor a trav\'es del socket TCP. Implementa ademas un pequeño parser de comandos.
+\item Pstat: Su funci\'on es evaluar la carga del nodo e informar acerca de esta a intervalos regulares.
+\item Pcomando: Atiende las consultas del cliente, comunic\'andose con los distintos m\'odulos.
+\item Pbalance: Se encarga de decidir que nodo del sistema es el mas apropiado para atender la consulta del cliente.
+\end{itemize}
+
+\section{Funcionamiento:}
+Cada nodo se ejecutara en una maquina virtual de Erlang, por lo que es necesario tenerlo instalado en todos las maquinas donde el servidor se funcione.\\
+Para utilizar el servidor se debe ejecutar los siguientes comandos:\\ \texttt{erl -name NameNode@IP -setcookie Cookie}\\
+Una vez hecho esto es necesario conectar los nodos entre si:\\ \texttt{net\_adm:ping('nodeName@IP').}\\
+Donde 'nodeName@IP' es uno de los nodos del servidor.
+Finalmente, se ejecuta\\\texttt{server:init().} \\y el servidor empezar\'a a funcionar.\\
+Por parte del cliente, en una maquina virtual de Erlang escribimos\\ \texttt{client:init().}\\y ya tendremos el cliente conectado al servidor.
+
+\section{Posibles extensiones:}
+\begin{itemize}
+\item Brindar un servicio de chat para que los usuarios puedan comunicarse entre si o hablar con determinados grupos de usuario, como todos los observadores de una misma partida.
+\item Agregar distintos tipos de juegos sobre la misma estructura, utilizando distintos tipos de IDs.
+\item Comunicar el servidor con una base de datos distribuida donde se almacene toda la informaci\'n y de esa mejorar el rendimiento del servidor y garantizar la consistencia de la informaci\'n.
+\end{itemize}
+
+\end{document}
