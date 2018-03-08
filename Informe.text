@@ -8,41 +8,41 @@
 	\centering % Centrar
 	\scshape % Font linda para las cosas chicas
 	\vspace*{\baselineskip} % Espacio al principio
-	
+
 	\rule{\textwidth}{1.6pt}\vspace*{-\baselineskip}\vspace*{2pt} % Línea horizontal grande
 	\rule{\textwidth}{0.4pt} % Línea horizontal suave
-	
+
 	\vspace{0.75\baselineskip} % Espacio pre-título
-	
+
 	{\LARGE Trabajo Final de Sistemas Operativos} % Título
-	
+
 	\vspace{0.75\baselineskip} % Espacio post-título
-	
+
 	\rule{\textwidth}{0.4pt}\vspace*{-\baselineskip}\vspace{3.2pt} % Línea delgada
 	\rule{\textwidth}{1.6pt} % Línea grande
-	
+
 	\vspace{2\baselineskip} % Espacio post título
 
 	\vspace{\baselineskip} % Espacio
 	{\itshape\Large Bruno Baruffaldi\\} % Lista
 	{\itshape\Large Mauricio Muratori\\}
     \vspace{\baselineskip} % Espacio
-	
+
 	\textit{Universidad Nacional de Rosario \\ Facultad de Ciencias Exactas, Ingenier\'ia y Agrimensura} % Afiliación
-	
-	
+
+
 	\vspace*{5\baselineskip} %Espacio pre imagen
-    
+
     %Imagen
     \begin{figure}[h] %El h es para que quede en el lugar
 	\centering
 	\includegraphics[width=0.8\textwidth]{FCEIA.jpg}
 	\end{figure}
-    
+
     \vfill % Espacio
-		
+
 	\vspace{0.3\baselineskip} % Espacio
-	
+
 
 \end{titlepage}
 \large
@@ -67,11 +67,11 @@ La respuesta del servidor sera de la forma OK comdid op1 ... o ERROR comdid op1 
 \subsection{Arquitectura:}
 \begin{itemize}
 \item Server: Se encarga de la sincronizacion de los distintos nodos del sistemas y maneja la informaci\'on de los jugadores y las partidas.
-\item Dispatcher: Su tarea es esperar y atender nuevas conexiones.
-\item Psocket: Una vez establecida la conexi\'on, se encarga de la comunicaci\'on entre el cliente y el servidor a trav\'es del socket TCP. Implementa ademas un pequeño parser de comandos.
+\item Dispatcher: Su tarea es esperar y atender nuevas conexiones. Es llamado por el m\'odulo server, al finalizar la funci\'on init().
+\item Psocket:  Es llamado por el m\'odulo Dispatcher, una vez que establece la conexi\'on. Se encarga de la comunicaci\'on entre el cliente y el servidor a trav\'es del socket TCP. Implementa ademas un pequeño parser de comandos.
 \item Pstat: Su funci\'on es evaluar la carga del nodo e informar acerca de esta a intervalos regulares.
-\item Pcomando: Atiende las consultas del cliente, comunic\'andose con los distintos m\'odulos.
-\item Pbalance: Se encarga de decidir que nodo del sistema es el mas apropiado para atender la consulta del cliente.
+\item Pcomando: Atiende las consultas del cliente, por medio del m\'odulo psocket, comunic\'andose con los distintos m\'odulos.
+\item Pbalance: Se encarga de decidir que nodo del sistema es el mas apropiado para atender la consulta del cliente. Esto se puede realizar gracias al m\'odulo pstat.
 \end{itemize}
 
 \section{Funcionamiento:}
