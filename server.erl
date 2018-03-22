@@ -23,9 +23,9 @@ init(Puerto)->
 
 %%%%%%%%%%%%%%%%%%MUTEX%%%%%%%%%%%%%%%%%%
 
-dirlock(L) -> dirlock(random:uniform(?P),L).
-
 dirunlock()->lists:foreach(fun(X)-> {dir,X}!{unlock} end,nodes()).
+
+dirlock(L) -> dirlock(random:uniform(?P),L).
 
 dirlock(N,L)->
 	Pid=spawn(?MODULE,dirlock,[N,L,self()]),
@@ -50,7 +50,7 @@ dirlock(N,_L,Pid)->
 	end.
 		
 cath(M,N)->
-	A = length(nodes()) < M + 1,
+	A = length(nodes()) < M + 1, %%length(nodes()) == M
 	if A    -> ok;
 	   true -> 
 		receive 

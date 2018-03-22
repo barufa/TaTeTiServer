@@ -1,4 +1,4 @@
-all: clean compile parche
+all: clean compile clean
 
 #Genera archivos *.bea#, falla
 #Sobre todo si se utiliza erl -compile *.erl
@@ -13,9 +13,6 @@ compile:
 
 clean:
 	rm -f *.bea? *.dump
-
-parche:
-	rm -f *.bea# *.dump
 
 remove:
 	sudo rm -f *.bea? *.dump
