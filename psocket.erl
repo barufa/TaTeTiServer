@@ -1,9 +1,10 @@
 -module(psocket).
 -compile(export_all).
--define(OPCIONES,[{active,false},{mode, binary}]).
+-define(OPCIONES,[{active,false},{mode,binary}]).
 -import(pbalance,[getNode/0]).
 
 getName(Socket)->
+	server:empty(),
 	case string:tokens(inbox(Socket)," ") of
 		["CON",Cid,Nombre] ->
 			dir!{add,self(),Nombre},
@@ -17,7 +18,7 @@ getName(Socket)->
 					getName(Socket)
 			end;
 		[_Com|[Id|_L]]     ->
-			gen_tcp:send(Socket,"ERROR "++Id++"comanderror");
+			gen_tcp:send(Socket,"ERROR "++Id++" comanderror");
 		_X                  ->
 			clean(Socket)
 	end.
@@ -59,12 +60,12 @@ clean(Sk,Nombre)->
 	game!{removeall,self()},
 	clean(Sk).
 
-newName(Nombre)->
-	dir!{add,self(),Nombre},
-	receive
-		ok    -> ok;
-		error -> error
-	end.
+%~ newName(Nombre)->
+	%~ dir!{add,self(),Nombre},
+	%~ receive
+		%~ ok    -> ok;
+		%~ error -> error
+	%~ end.
 
 inbox(Socket)->
 	case gen_tcp:recv(Socket,0) of

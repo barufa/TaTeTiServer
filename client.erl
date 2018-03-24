@@ -52,6 +52,7 @@ reader(Server)->
 			io:format("Se ha producio un error en el comando anterior: ~p ~n",[binary_to_list(Cambio)]),
 			reader(Server);
 		{error,_Reason}        ->
+			io:format("Se ha cerrado la conexión ~n"),
 			ok
 	end.
 

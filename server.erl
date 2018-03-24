@@ -13,6 +13,14 @@ reduce(F,Z,X)->
 	{_A,B}=lists:mapfoldl(fun(Y,Sum)->{0,F(Y,Sum)} end,Z,X),
 	B.
 
+empty()->
+	receive
+		_ -> empty()
+		after 0 -> ok
+	end.
+
+init()->init(?PUERTO).
+
 init(Puerto)->
 	io:format("Iniciando nodo ~p~n",[node()]),
 	spawn(pstat,monitor,[]),
@@ -35,14 +43,8 @@ dirlock(N,L)->
 		error -> waitunlock(L),dirlock(random:uniform(?P),L)
 	end.
 
-waitunlock(List)->
-	receive 
-		unlock            -> ok;
-		{lock,P,_T}       -> P!locked,waitunlock(List);
-		{ishere,P,Nombre} -> P!ordsets:is_element(Nombre,List),waitunlock(List)
-	end.
-
 dirlock(N,_L,Pid)->
+	empty(),
 	lists:foreach(fun(X)-> {dir,X}!{lock,self(),N} end,nodes()),
 	case cath(0,N) of
 		ok    -> Pid!ok;
@@ -64,6 +66,13 @@ cath(M,N)->
 							   true -> Pid!locked,error
 							end
 		end
+	end.
+
+waitunlock(List)->
+	receive 
+		{unlock}          -> ok;
+		{lock,P,_T}       -> P!locked,waitunlock(List);
+		{ishere,P,Nombre} -> P!ordsets:is_element(Nombre,List),waitunlock(List)
 	end.
 	
 %%%%%%%%%%DIRECTORIO DE NOMBRES%%%%%%%%%%
@@ -145,7 +154,7 @@ games(List,Lid)->
 			games(List,lists:delete(Gid,Lid));
 		{add,Pid,User}             ->
 			Gid=getNextid(Lid),
-			Pgm=spawn(?MODULE,play,[Gid,User,Pid,[]]),
+			Pgm=spawn(?MODULE,play,[Gid,User,[]]),
 			L=maps:put(Gid,{Pgm,User,ordsets:new()},List),
 			lists:foreach(fun(X)-> {game,X}!{new,Gid} end,nodes()),
 			Pid!{ok,Gid},
@@ -272,12 +281,13 @@ removeObs(Gid,User,List)->
 
 %%%%%%%%%%%%%%%%%Partida%%%%%%%%%%%%%%%%%
 
-play(Gid,PidUser,PidPcomando,List)->
+play(Gid,PidUser,List)->
+	empty(),
 	receive
 		{obs,Obs}       ->
-			play(Gid,PidUser,PidPcomando,[Obs|List]);
+			play(Gid,PidUser,[Obs|List]);
 		{robs,Obs}      ->
-			play(Gid,PidUser,PidPcomando,lists:delete(Obs,List));
+			play(Gid,PidUser,lists:delete(Obs,List));
 		{new,PidPlayer} ->
 			lists:foreach(fun(P)-> P!{msg,"Inicia "++Gid} end,[PidUser|[PidPlayer|List]]),
 			play(Gid,PidUser,PidPlayer,List,[0,0,0,0,0,0,0,0,0],0)
@@ -326,7 +336,7 @@ play(Gid,Player1,Player2,List,Game,Turno)->
 		after ?GTIMEOUT ->
 			Current!{msg,"Se te acabo el tiempo "++Gid++" "++tostring(Game)},
 			Next!{msg,"Ganaste por default  "++Gid++" "++tostring(Game)},
-			lists:foreach(fun(P)-> P!{msg,Gid++tostring(Game)},P!{msg,Gid++" fin"} end,List)
+			lists:foreach(fun(P)-> P!{msg,Gid++tostring(Game)},P!{msg,Gid++" fin por timeout"} end,List)
 	end.
 
 isok(Game,Lugar,N)->

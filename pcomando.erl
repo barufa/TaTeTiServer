@@ -3,6 +3,7 @@
 -define(TIMEOUT,30000).
 
 comand(Client,CId,Comand)->
+	server:empty(),
 	case Comand of
 		{lsg}->
 			game!{show,self()},
