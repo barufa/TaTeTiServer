@@ -1,7 +1,5 @@
 all: clean compile clean
 
-#Genera archivos *.bea#, falla
-#Sobre todo si se utiliza erl -compile *.erl
 compile:
 	@echo "Compilando"
 	@erl -compile dispacher.erl
