@@ -1,5 +1,5 @@
 
-[![Build Status]](https://github.com/barufa/TaTeTiServer)
+[![Build Status]](https://github.com/barufa/TaTeTiServer/build-passing.png)
 
 # Erlang Tic-Tac-Toe
 <pre>                                                         
