@@ -39,7 +39,7 @@ client:init().
 ```
 and we will have the client connected to the server.
 
-## Architecture
+## Communication protocol
 The virutal machines act as a server listening on TCP port 8000 (in case of using the same PC, they can listen on different ports).
 The communication between client and server is by sending strings on a TCP socket.
 The general form of the user's requests to the server is:
@@ -61,5 +61,18 @@ to which the client must respond with:
 OK cmdid
 ```
 
-# Comands
+## Comands
+
+* CON name: Start communication with the server. The client must provide a username. If the name is not in use, the server must respond by accepting the request.
+* LSG cmdid: List the available games. These are the ones that are in
+and those who are waiting for an opponent.
+* NEW cmdid: Create a new game, which will be between the player who starts it and the first one who accepts it.
+* ACC cmdid gameid: Accept the game identified by game. The server must answer if the command was successful or not (for example, if someone accepted before).
+* PLA cmdid gameid played:Make a move in the game identified by gameid. The play may be to abandon the game. You can return an error if the play is illegal. In case of being accepted, the server must answer with the change in the state of the game.
+* OBS cmdid gameid: Ask to watch a game. The server starts sending changes to the game state. The server must answer with the current state of the game.
+* LEA cmdid gameid: Stop watching a game.
+* BYE: Terminate the connection. Leave all games in which you participate.
+
+The messages that the server sends are:
+* UPD cmdid juegoid change: A game update. The observers and the opposing player receive it.
 
